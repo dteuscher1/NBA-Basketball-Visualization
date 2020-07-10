@@ -9,6 +9,7 @@ library(devtools)
 #install_github("rtelmore/ballr")
 library(ballr)
 library(tidyverse)
+library(RColorBrewer)
 ```
 
 
@@ -18,12 +19,15 @@ kobe <- read.csv("data.csv")
 head(kobe)
 ```
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 source("Court.R")
-kobe.filter <- kobe %>% filter(shot_distance <= 30)
+kobe.filter <- kobe %>% 
+    filter(shot_distance <= 30) %>%
+    mutate(shot_zone_range = factor(shot_zone_range, 
+                                    levels = c("Less Than 8 ft.", "8-16 ft.", "16-24 ft.", "24+ ft.")))
 col_scheme <- c("firebrick4","darkorange2","gold1",
                 "chartreuse4","dodgerblue", "darkorchid4")
-ggplot() + geom_point(data = kobe.filter, aes(x = loc_x, y = loc_y + 53.5, color = shot_distance), size = .5) + geom_path(data = test.outer_key, aes(x= x, y = y)) + geom_path(data = test.perimeter, aes(x= x, y = y)) + geom_path(data = test.three, aes(x= x, y = y)) + ylim(-10, 350) +
+ggplot() + geom_point(data = kobe.filter, aes(x = loc_x, y = loc_y + 52, color = shot_distance), size = .4) + geom_path(data = test.outer_key, aes(x= x, y = y)) + geom_path(data = test.perimeter, aes(x= x, y = y)) + geom_path(data = test.three, aes(x= x, y = y)) + ylim(-10, 350) +
     geom_path(data = test.backboard, aes(x= x, y = y)) +
     geom_path(data = test.neck, aes(x= x, y = y)) + 
     geom_path(data = test.hoop, aes(x= x, y = y)) + 
@@ -32,9 +36,110 @@ ggplot() + geom_point(data = kobe.filter, aes(x = loc_x, y = loc_y + 53.5, color
     coord_fixed() + theme_void() + scale_color_gradientn(colors = col_scheme,limits = c(0,30), breaks = c(0, 30), name = 'Shot Distance (ft)') +
     labs(title = "Kobe Bryant Shot Distance")
 
-ggplot() + geom_point(data = kobe %>% filter(lat >= 33.6), aes(x = lon, y = lat)) + coord_fixed(ratio = 1)
+ggplot() + geom_point(data = kobe.filter, aes(x = loc_x, y = loc_y + 52, color = shot_zone_range), size = .4) + geom_path(data = test.outer_key, aes(x= x, y = y)) + geom_path(data = test.perimeter, aes(x= x, y = y)) + geom_path(data = test.three, aes(x= x, y = y)) + ylim(-10, 350) +
+    geom_path(data = test.backboard, aes(x= x, y = y)) +
+    geom_path(data = test.neck, aes(x= x, y = y)) + 
+    geom_path(data = test.hoop, aes(x= x, y = y)) + 
+    geom_path(data = test.foul_circle, aes(x= x, y = y)) +
+    geom_path(data = test.restricted, aes(x= x, y = y)) + 
+    coord_fixed() + theme_void() + scale_color_manual(values = c("#D92027", "#FF9234", "#FFCD3C", "#35D0BA"), name = "Zone Range") + guides(colour = guide_legend(reverse = TRUE, override.aes = list(size = 5))) +
+    labs(title = "Kobe Bryant Shot Zone Range")
 
 
+ggplot() + geom_point(data = kobe.filter, aes(x = loc_x, y = loc_y + 52, color = shot_zone_area), size = .4) + geom_path(data = test.outer_key, aes(x= x, y = y)) + geom_path(data = test.perimeter, aes(x= x, y = y)) + geom_path(data = test.three, aes(x= x, y = y)) + ylim(-10, 350) +
+    geom_path(data = test.backboard, aes(x= x, y = y)) +
+    geom_path(data = test.neck, aes(x= x, y = y)) + 
+    geom_path(data = test.hoop, aes(x= x, y = y)) + 
+    geom_path(data = test.foul_circle, aes(x= x, y = y)) +
+    geom_path(data = test.restricted, aes(x= x, y = y)) + 
+    coord_fixed() + theme_void() + scale_color_manual(values = col_scheme, name = "Zone Range") + guides(colour = guide_legend(reverse = TRUE, override.aes = list(size = 5))) +
+    labs(title = "Kobe Bryant Shot Zone Range")
+
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+shot.data <- kobe.filter %>%
+    filter(!is.na(shot_made_flag))
+
+ggplot() + geom_point(data = shot.data, aes(x = loc_x, y = loc_y + 52, color = as.factor(shot_made_flag)), size = .75) + geom_path(data = test.outer_key, aes(x= x, y = y)) + geom_path(data = test.perimeter, aes(x= x, y = y)) + geom_path(data = test.three, aes(x= x, y = y)) + ylim(-10, 350) +
+    geom_path(data = test.backboard, aes(x= x, y = y)) +
+    geom_path(data = test.neck, aes(x= x, y = y)) + 
+    geom_path(data = test.hoop, aes(x= x, y = y)) + 
+    geom_path(data = test.foul_circle, aes(x= x, y = y)) +
+    geom_path(data = test.restricted, aes(x= x, y = y)) + 
+    coord_fixed() + theme_void() + scale_color_manual(values = c("#fdb927", "#552583"), labels = c("Miss", "Make"), name = "Zone Range") + guides(colour = guide_legend(reverse = TRUE, override.aes = list(size = 5))) +
+    labs(title = "Kobe Bryant Shot Distance")
+
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+team_percentage <- shot.data %>% 
+    group_by(opponent) %>%
+    summarize(FGPercent = mean(shot_made_flag == 1),
+              FG2Percent = sum(shot_made_flag == 1 & shot_type == "2PT Field Goal")/sum(shot_type == "2PT Field Goal"),
+              FG3Percent = sum(shot_made_flag == 1 & shot_type == "3PT Field Goal")/sum(shot_type == "3PT Field Goal"))
+
+
+team_percentage$conference <- c("East", "East", "East", "East", "East", "East", "West", "West", "East", "West", "West", "East", "West", "West", "East", "East", "West", "East", "West", "West", "East", "West", "East", "East", "West", "West", "West", "West", "West", "East", "West", "West", "East")
+team_percentage$conference <- factor(team_percentage$conference)
+team_percentage <- team_percentage %>% arrange(desc(FGPercent))
+
+empty_bar <- 10
+to_add <- data.frame( matrix(NA, empty_bar*nlevels(team_percentage$conference), ncol(team_percentage)) )
+colnames(to_add) <- colnames(team_percentage)
+to_add$conference <- rep(levels(team_percentage$conference), each=empty_bar)
+team_percentage <- rbind(team_percentage, to_add)
+team_percentage <- team_percentage %>% arrange(conference)
+team_percentage$id <- seq(1, nrow(team_percentage))
+
+label_data <- team_percentage
+number_of_bar <- nrow(label_data)
+angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
+label_data$hjust <- ifelse( angle < -90, 1, 0)
+label_data$angle <- ifelse(angle < -90, angle+180, angle)
+
+base_data <- team_percentage %>% 
+  group_by(conference) %>% 
+  summarize(start=min(id), end=max(id) - empty_bar) %>% 
+  rowwise() %>% 
+  mutate(title=mean(c(start, end)))
+
+
+grid_data <- base_data
+grid_data$end <- grid_data$end[ c( nrow(grid_data), 1:nrow(grid_data)-1)] + 1
+grid_data$start <- grid_data$start - 1
+grid_data <- grid_data[-1,]
+
+ggplot(team_percentage, aes(x=as.factor(id), y=FGPercent*100, fill=conference)) +       # Note that id is a factor. If x is numeric, there is some space between the first bar
+  
+  geom_bar(aes(x=as.factor(id), y=FGPercent*100, fill=conference), stat="identity", alpha=0.5) +
+  
+  # Add a val=100/75/50/25 lines. I do it at the beginning to make sur barplots are OVER it.
+  geom_segment(data=grid_data, aes(x = end, y = 80, xend = start, yend = 80), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 60, xend = start, yend = 60), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 40, xend = start, yend = 40), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 20, xend = start, yend = 20), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  
+  # Add text showing the value of each 100/75/50/25 lines
+  annotate("text", x = rep(max(team_percentage$id),4), y = c(20, 40, 60, 80), label = c("20", "40", "60", "80") , color="grey", size=3 , angle=0, fontface="bold", hjust=1) +
+  
+  geom_bar(aes(x=as.factor(id), y=FGPercent, fill=conference), stat="identity", alpha=0.5) +
+   ylim(-50,100) + 
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = unit(rep(-1,4), "cm") 
+  ) +
+  coord_polar() + 
+  geom_text(data=label_data, aes(x=id, y=(FGPercent*100)+10, label=paste(opponent, " ",  round(FGPercent*100, digits = 2), "%", sep = ""), hjust=hjust), color="black", fontface="bold",alpha=0.6, size=2.5, angle= label_data$angle, inherit.aes = FALSE ) +
+  # Add base line information
+  geom_segment(data=base_data, aes(x = start, y = -5, xend = end, yend = -5), colour = "black", alpha=0.8, size=0.6 , inherit.aes = FALSE )  +
+  geom_text(data=base_data, aes(x = title, y = -18, label=conference), hjust=c(1,0), colour = "black", alpha=0.8, size=4, fontface="bold", inherit.aes = FALSE) + labs(title ="Kobe Bryant Field Goal Percentage by Team") + scale_fill_manual(values = c("#0168ad", "#ed174b"))
 
 ```
 
