@@ -1,0 +1,18 @@
+---
+title: "ShotAnalysis"
+output: html_document
+---
+
+```{r setup}
+library(tidyverse)
+library(caret)
+
+shots <- read.csv("data.csv", header = TRUE)
+```
+
+```{r}
+# Lokking at the structure of the data
+str(shots)
+```
+
+
