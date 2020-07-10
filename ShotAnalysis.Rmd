@@ -6,13 +6,125 @@ output: html_document
 ```{r setup}
 library(tidyverse)
 library(caret)
+library(dummies)
 
 shots <- read.csv("data.csv", header = TRUE)
 ```
 
 ```{r}
-# Lokking at the structure of the data
+# Looking at the structure of the data
 str(shots)
 ```
 
+```{r}
+# Converting all character variables to factors
+shots[sapply(shots, is.character)] <- lapply(shots[sapply(shots, is.character)], as.factor)
+str(shots)
+```
+
+```{r}
+ggplot(shots, aes(x = lon, y = lat)) + geom_point()
+```
+
+```{r}
+ggplot(shots, aes(x = loc_x, y = loc_y)) + geom_point()
+```
+
+```{r}
+# Converting loc_x and loc_y from Cartesian coordinates to Polar coordinates
+shots$loc_r <- sqrt((shots$loc_x)^2 + (shots$loc_y)^2)
+shots$loc_theta <- atan(shots$loc_y/shots$loc_x)
+shots$loc_theta[is.na(shots$loc_theta)] <- pi/2 # Some loc_x coordinates are 0, and we replace these values with pi / 2 radians or 90 degrees
+```
+
+```{r}
+# Combining minutes_remaining and seconds_remaining
+shots$time_remaining <- (shots$minutes_remaining * 60) + shots$seconds_remaining
+# time_remaining = total seconds remaining
+```
+
+```{r}
+# Selecting only the last 2 digits of the season variable
+shots$season <- sapply(shots$season, function(x){str_extract(x, "(?<=[:punct:])[:digit:]{2}")}) 
+
+# Don't know whether things will change if we leave it as a factor or convert it to an integer
+```
+
+```{r}
+# Irrelevant variables
+unique(shots$team_id)
+unique(shots$team_name)
+```
+
+```{r}
+# Creating home and away variables from the matchup variable
+shots$away <- as.numeric(grepl("@", shots$matchup, fixed = TRUE))
+shots$home <- as.numeric(grepl("vs.", shots$matchup, fixed = TRUE))
+```
+
+
+```{r}
+# Since we created polar coordinates for the shots, the loc_r variable is proportional to the shot_distance variable
+ggplot(shots, aes(x = loc_r, y = shot_distance)) + geom_point(col = "blue")
+```
+
+```{r}
+# Removing unneeded variables
+shots_filtered <- shots %>% select(-c(shot_id, team_id, team_name, shot_zone_area, shot_zone_range, shot_zone_basic, matchup, lon, lat, seconds_remaining, minutes_remaining, shot_distance, loc_x, loc_y, game_event_id, game_id, game_date))
+```
+
+```{r}
+# Creating dummy variables for the factor variables that remain
+action_type_dummies <- data.frame(dummy(shots_filtered$action_type, sep = "_"))
+
+combined_shot_type_dummies <- data.frame(dummy(shots_filtered$combined_shot_type, sep = "_"))
+
+shot_type_dummies <- data.frame(dummy(shots_filtered$shot_type, sep = "_"))
+
+opponent_dummies <- data.frame(dummy(shots_filtered$opponent, sep = "_"))
+
+period_dummies <- data.frame(dummy(shots_filtered$period, sep = "_"))
+
+season_dummies <- data.frame(dummy(shots_filtered$season, sep = "_"))
+```
+
+```{r}
+# Adding in the dummy variables
+shots_dummies <- cbind(shots_filtered %>% select(-c(action_type, combined_shot_type, shot_type, opponent, period, season)), action_type_dummies, combined_shot_type_dummies, shot_type_dummies, opponent_dummies, period_dummies, season_dummies)
+```
+
+```{r}
+# Create test and training set
+
+# Removing NAs
+shots_test <- shots_dummies %>% filter(is.na(shot_made_flag)) #5000 shots where we don't know if it went in or not
+shots_train <- shots_dummies %>% filter(!is.na(shot_made_flag))
+```
+
+```{r}
+# With classProbs = TRUE, the response variable cannot be 1 and 0
+shots_train <- shots_train %>% mutate(shot_made_flag = ifelse(shot_made_flag == 1, "Yes", "No"))
+```
+
+```{r}
+# Building first model
+
+# Define resampling procedure as standard k-fold Cross Validations
+myControl <- trainControl(method = "cv", 
+                          number = 5, 
+                          classProbs = TRUE,
+                          summaryFunction = mnLogLoss
+                          )
+
+xgbTree.model <- train(as.factor(shot_made_flag) ~ .,
+                       data = shots_train,
+                       method = "xgbTree",
+                       trControl = myControl,
+                       metric = "logLoss"
+                       )
+
+print(xgbTree.model)
+
+beepr::beep(sound = 2)
+```
 
