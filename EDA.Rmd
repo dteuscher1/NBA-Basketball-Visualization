@@ -10,6 +10,8 @@ library(devtools)
 library(ballr)
 library(tidyverse)
 library(RColorBrewer)
+library(forcats)
+library(ggthemes)
 ```
 
 
@@ -141,5 +143,28 @@ ggplot(team_percentage, aes(x=as.factor(id), y=FGPercent*100, fill=conference)) 
   geom_segment(data=base_data, aes(x = start, y = -5, xend = end, yend = -5), colour = "black", alpha=0.8, size=0.6 , inherit.aes = FALSE )  +
   geom_text(data=base_data, aes(x = title, y = -18, label=conference), hjust=c(1,0), colour = "black", alpha=0.8, size=4, fontface="bold", inherit.aes = FALSE) + labs(title ="Kobe Bryant Field Goal Percentage by Team") + scale_fill_manual(values = c("#0168ad", "#ed174b"))
 
+```
+
+```{r}
+shot.type <- shot.data %>%
+  group_by(action_type) %>%
+  summarize(FGPercent = round(mean(shot_made_flag) * 100, digits = 2))
+ggplot(shot.type, aes(fct_reorder(action_type, FGPercent), FGPercent)) +
+  geom_bar(stat = "identity", fill = "#fdb927") + 
+  geom_point(color = "#552583") +
+  xlab("Shot type") +
+  ylab("Field Goal Percentage") +
+  coord_flip()
+
+shot.type.small <- shot.data %>%
+  group_by(combined_shot_type) %>%
+  summarize(FGPercent = round(mean(shot_made_flag) * 100, digits = 2))
+
+ggplot(shot.type.small, aes(fct_reorder(combined_shot_type, FGPercent), FGPercent)) +
+  geom_bar(stat = "identity", fill = "#fdb927") + 
+  geom_point(color = "#552583", size = 3) +
+  xlab("Shot type") +
+  ylab("Field Goal Percentage") +
+  coord_flip() + theme_clean()
 ```
 
