@@ -221,5 +221,51 @@ leaflet() %>%
                    fillOpacity = 1, stroke = FALSE) %>%
   addLegend(pal = mypalette, values = ~FGPercent, opacity = .75, title = "Field Goal Percent", position = "bottomleft")
 
+teams %>%
+leaflet() %>%
+  addProviderTiles("Esri") %>%
+  addCircleMarkers(lng = ~long, lat = ~lat, label = mytext_leaflet,
+                   color = ~mypalette(FGPercent), 
+                   fillOpacity = 1, stroke = FALSE, radius = ~(Games_Against/5)) %>%
+  addLegend(pal = mypalette, values = ~FGPercent, opacity = .75, title = "Field Goal Percent", position = "bottomleft")
+
+```
+
+
+```{r,warning=FALSE, message=FALSE}
+library(ggridges)
+library(hrbrthemes) 
+ggplot(kobe.filter, aes(x = shot_distance, y = season, fill = ..x..)) +
+  geom_density_ridges_gradient(scale = 2, rel_min_height = 0.01) +
+  scale_fill_viridis(option = "C") +
+  labs(title = 'Kobe Bryant Shot Distance by Season', y = "", x = "Shot distance (ft.)") +
+  theme_ipsum() +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)
+    )
+
+ggplot(kobe.filter, aes(x = shot_distance, y = as.factor(minutes_remaining), fill = ..x..)) +
+  geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+  scale_fill_viridis(option = "inferno") +
+  labs(title = 'Kobe Bryant Shot Distance by Minutes Remaining', y = "", x = "Shot distance (ft.)") +
+  theme_ipsum() +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)
+    )
+
+ggplot(kobe.filter, aes(x = shot_distance, y = shot_zone_area, fill = ..x..)) +
+  geom_density_ridges_gradient(scale = 1.5, rel_min_height = 0.01) +
+  scale_fill_viridis(option = "C") +
+  labs(title = 'Kobe Bryant Shot Distance by Area', y = "", x = "Shot distance (ft.)") +
+  theme_ipsum() +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)
+    )
 ```
 
