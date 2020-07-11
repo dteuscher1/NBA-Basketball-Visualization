@@ -132,6 +132,5 @@ model.preds <- ifelse(model.preds == "Yes", 1, 0)
 test.id <- shots %>% filter(is.na(shot_made_flag)) %>% select(shot_id)
 xgbTree <- data.frame(shot_id = test.id, shot_made_flag = model.preds)
 write_csv(xgbTree, "xgbTree-preds1.csv")
-head(xgbTree)
 ```
 
