@@ -124,7 +124,14 @@ xgbTree.model <- train(as.factor(shot_made_flag) ~ .,
                        )
 
 print(xgbTree.model)
-
+xgbTree.model
 beepr::beep(sound = 2)
+
+model.preds <- predict(xgbTree.model, shots_test)
+model.preds <- ifelse(model.preds == "Yes", 1, 0)
+test.id <- shots %>% filter(is.na(shot_made_flag)) %>% select(shot_id)
+xgbTree <- data.frame(shot_id = test.id, shot_made_flag = model.preds)
+write_csv(xgbTree, "xgbTree-preds1.csv")
+head(xgbTree)
 ```
 
