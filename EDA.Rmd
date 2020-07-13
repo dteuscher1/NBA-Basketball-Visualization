@@ -1,6 +1,6 @@
 ---
 title: "Kobe Bryant EDA"
-output: pdf_document
+output: html_document
 ---
 
 
@@ -238,8 +238,8 @@ library(hrbrthemes)
 ggplot(kobe.filter, aes(x = shot_distance, y = season, fill = ..x..)) +
   geom_density_ridges_gradient(scale = 2, rel_min_height = 0.01) +
   scale_fill_viridis(option = "C") +
-  labs(title = 'Kobe Bryant Shot Distance by Season', y = "", x = "Shot distance (ft.)") +
-  theme_ipsum() +
+  labs(title = 'Kobe Bryant Shot Distance by Season', y = "", caption  = "Shot distance (ft.)") +
+  theme_fivethirtyeight() +
     theme(
       legend.position="none",
       panel.spacing = unit(0.1, "lines"),
@@ -249,8 +249,8 @@ ggplot(kobe.filter, aes(x = shot_distance, y = season, fill = ..x..)) +
 ggplot(kobe.filter, aes(x = shot_distance, y = as.factor(minutes_remaining), fill = ..x..)) +
   geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
   scale_fill_viridis(option = "inferno") +
-  labs(title = 'Kobe Bryant Shot Distance by Minutes Remaining', y = "", x = "Shot distance (ft.)") +
-  theme_ipsum() +
+  labs(title = 'Kobe Bryant Shot Distance by Minutes Remaining', y = "", x = "Shot distance (ft.)", caption = "Shot distance (ft.)") +
+  theme_fivethirtyeight() +
     theme(
       legend.position="none",
       panel.spacing = unit(0.1, "lines"),
@@ -260,13 +260,14 @@ ggplot(kobe.filter, aes(x = shot_distance, y = as.factor(minutes_remaining), fil
 ggplot(kobe.filter, aes(x = shot_distance, y = shot_zone_area, fill = ..x..)) +
   geom_density_ridges_gradient(scale = 1.5, rel_min_height = 0.01) +
   scale_fill_viridis(option = "C") +
-  labs(title = 'Kobe Bryant Shot Distance by Area', y = "", x = "Shot distance (ft.)") +
-  theme_ipsum() +
+  labs(title = 'Kobe Bryant Shot Distance by Area', y = "", caption = "Shot distance (ft.)") +
+  theme_fivethirtyeight() +
     theme(
       legend.position="none",
       panel.spacing = unit(0.1, "lines"),
       strip.text.x = element_text(size = 8)
     )
+
 ```
 
 ```{r}
@@ -425,39 +426,90 @@ ggplot(data = minutes, aes(x = minutes_remaining, y = FGPercentage)) +
   ) + labs(x = "", y = "Field Goal Percentage", title = "Percentage for Minutes Remaining in the Quarter")
 ```
 
+```{r, warnings = FALSE, messages = FALSE}
+head(shot.data)
+ggplot() +stat_density_2d(
+      data = shot.data %>% filter(shot_zone_basic != "Restricted Area"),
+      aes(x = loc_x, y = loc_y + 52, fill = stat(density / max(density))),
+      geom = "raster", na.rm = TRUE, contour = FALSE, interpolate = TRUE, n = 300
+    ) + geom_path(data = test.outer_key, aes(x= x, y = y), color = "white") + geom_path(data = test.perimeter, aes(x= x, y = y), color = "white", na.rm = TRUE) + geom_path(data = test.three, aes(x= x, y = y), color = "white") + ylim(-10, 350) +
+    geom_path(data = test.backboard, aes(x= x, y = y),color = "white") +
+    geom_path(data = test.neck, aes(x= x, y = y),color = "white") + 
+    geom_path(data = test.hoop, aes(x= x, y = y),color = "white") + 
+    geom_path(data = test.foul_circle, aes(x= x, y = y),color = "white") +
+    geom_path(data = test.restricted, aes(x= x, y = y),color = "white") + 
+    coord_fixed() + theme_void() + scale_fill_viridis_c(
+      "Shot Frequency         ",
+      limits = c(0, 1),
+      breaks = c(0, 1),
+      labels = c("Lower", "Higher"),
+      option = "inferno"
+    ) + theme(plot.background = element_rect(fill = "black"),
+              legend.text  = element_text(color = "white"),
+              legend.title = element_text(color = "white", vjust = 1),
+              plot.title = element_text(color = "white", hjust = .5, face = "bold"),
+              legend.position = "bottom",
+              plot.margin=unit(c(0,0,0,.0), "null"), 
+              panel.background = element_rect(fill = "black"),
+              strip.background = element_blank(),
+              plot.subtitle = element_text(color = "white", hjust = .5, face = "bold")) + labs(title = "Kobe Bryant Shot Frequency", subtitle = "Outside of the Restricted Area")
 
-```{r}
-library(hexbin)
-ggplot(shotDataf, aes(x=LOC_X, y=LOC_Y)) + 
-    annotation_custom(court, -250, 250, -52, 418) +
-    stat_binhex(bins = 25, colour = "gray", alpha = 0.7) +
-    scale_fill_gradientn(colours = c("yellow","orange","red")) +
-    guides(alpha = FALSE, size = FALSE) +
-    xlim(250, -250) +
-    ylim(-52, 418) +
-    geom_rug(alpha = 0.2) +
-    coord_fixed() +
-    ggtitle(paste("Shot Chart\n", unique(shotDataf$PLAYER_NAME), sep = "")) +
-    theme(line = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        legend.title = element_blank(),
-        plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))
-     
 
-ggplot()  + geom_path(data = test.outer_key, aes(x= x, y = y)) + geom_path(data = test.perimeter, aes(x= x, y = y)) + geom_path(data = test.three, aes(x= x, y = y)) + ylim(-10, 350) +
-    geom_path(data = test.backboard, aes(x= x, y = y)) +
-    geom_path(data = test.neck, aes(x= x, y = y)) + 
-    geom_path(data = test.hoop, aes(x= x, y = y)) + 
-    geom_path(data = test.foul_circle, aes(x= x, y = y)) +
-    geom_path(data = test.restricted, aes(x= x, y = y)) + 
-    stat_binhex(data = kobe.filter, aes(x = loc_x, y = loc_y + 52), bins = 10, colour = "gray", alpha = 0.7) + 
-    scale_fill_gradientn(colours = c("yellow","orange","red")) +
-    guides(alpha = FALSE, size = FALSE) +
-    coord_fixed() + theme_void() + scale_color_gradientn(colors = col_scheme,limits = c(0,30), breaks = c(0, 30), name = 'Shot Distance (ft)') +
-    labs(title = "Kobe Bryant Shot Distance")
-head(kobe)
+made <- ggplot() +stat_density_2d(
+      data = shot.data %>% filter(shot_zone_basic != "Restricted Area") %>% filter(shot_made_flag == 1),
+      aes(x = loc_x, y = loc_y + 52, fill = stat(density / max(density))),
+      geom = "raster", na.rm = TRUE, contour = FALSE, interpolate = TRUE, n = 300
+    ) + geom_path(data = test.outer_key, aes(x= x, y = y), color = "white") + geom_path(data = test.perimeter, aes(x= x, y = y), color = "white", na.rm = TRUE) + geom_path(data = test.three, aes(x= x, y = y), color = "white") + ylim(-10, 350) +
+    geom_path(data = test.backboard, aes(x= x, y = y),color = "white") +
+    geom_path(data = test.neck, aes(x= x, y = y),color = "white") + 
+    geom_path(data = test.hoop, aes(x= x, y = y),color = "white") + 
+    geom_path(data = test.foul_circle, aes(x= x, y = y),color = "white") +
+    geom_path(data = test.restricted, aes(x= x, y = y),color = "white") + 
+    coord_fixed() + theme_void() + scale_fill_viridis_c(
+      "Shot Frequency         ",
+      limits = c(0, 1),
+      breaks = c(0, 1),
+      labels = c("Lower", "Higher"),
+      option = "inferno"
+    ) + theme(plot.background = element_rect(fill = "black"),
+              legend.text  = element_text(color = "white"),
+              legend.title = element_text(color = "white", vjust = 1),
+              plot.title = element_text(color = "white", hjust = .5, face = "bold"),
+              legend.position = "bottom",
+              plot.margin=unit(c(0,0,0,.0), "null"), 
+              panel.background = element_rect(fill = "black"),
+              strip.background = element_blank(),
+              plot.subtitle = element_text(color = "white", hjust = .5, face = "bold")) + labs(title = "Kobe Bryant Shot Frequency", subtitle = "Made Baskets")
+
+miss <- ggplot() +stat_density_2d(
+      data = shot.data %>% filter(shot_zone_basic != "Restricted Area") %>% filter(shot_made_flag == 0),
+      aes(x = loc_x, y = loc_y + 52, fill = stat(density / max(density))),
+      geom = "raster", na.rm = TRUE, contour = FALSE, interpolate = TRUE, n = 300
+    ) + geom_path(data = test.outer_key, aes(x= x, y = y), color = "white") + geom_path(data = test.perimeter, aes(x= x, y = y), color = "white", na.rm = TRUE) + geom_path(data = test.three, aes(x= x, y = y), color = "white") + ylim(-10, 350) +
+    geom_path(data = test.backboard, aes(x= x, y = y),color = "white") +
+    geom_path(data = test.neck, aes(x= x, y = y),color = "white") + 
+    geom_path(data = test.hoop, aes(x= x, y = y),color = "white") + 
+    geom_path(data = test.foul_circle, aes(x= x, y = y),color = "white") +
+    geom_path(data = test.restricted, aes(x= x, y = y),color = "white") + 
+    coord_fixed() + theme_void() + scale_fill_viridis_c(
+      "Shot Frequency         ",
+      limits = c(0, 1),
+      breaks = c(0, 1),
+      labels = c("Lower", "Higher"),
+      option = "inferno"
+    ) + theme(plot.background = element_rect(fill = "black"),
+              legend.text  = element_text(color = "white"),
+              legend.title = element_text(color = "white", vjust = 1),
+              plot.title = element_text(color = "white", hjust = .5, face = "bold"),
+              legend.position = "bottom",
+              plot.margin=unit(c(0,0,0,.0), "null"), 
+              panel.background = element_rect(fill = "black"),
+              strip.background = element_blank(),
+              plot.subtitle = element_text(color = "white", hjust = .5, face = "bold")) + labs(title = "Kobe Bryant Shot Frequency", subtitle = "Missed Baskets")
+library(patchwork)
+made + miss
 ```
+
+
+
 
