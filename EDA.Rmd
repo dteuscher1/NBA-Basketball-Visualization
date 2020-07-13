@@ -12,6 +12,9 @@ library(tidyverse)
 library(RColorBrewer)
 library(forcats)
 library(ggthemes)
+library(viridis)
+library(maps)
+library(plotly)
 ```
 
 
@@ -61,7 +64,7 @@ ggplot() + geom_point(data = kobe.filter, aes(x = loc_x, y = loc_y + 52, color =
 
 
 ```{r, warning=FALSE, message=FALSE}
-shot.data <- kobe.filter %>%
+shot.data <- kobe %>%
     filter(!is.na(shot_made_flag))
 
 ggplot() + geom_point(data = shot.data, aes(x = loc_x, y = loc_y + 52, color = as.factor(shot_made_flag)), size = .75) + geom_path(data = test.outer_key, aes(x= x, y = y)) + geom_path(data = test.perimeter, aes(x= x, y = y)) + geom_path(data = test.three, aes(x= x, y = y)) + ylim(-10, 350) +
@@ -83,6 +86,10 @@ team_percentage <- shot.data %>%
               FG2Percent = sum(shot_made_flag == 1 & shot_type == "2PT Field Goal")/sum(shot_type == "2PT Field Goal"),
               FG3Percent = sum(shot_made_flag == 1 & shot_type == "3PT Field Goal")/sum(shot_type == "3PT Field Goal"))
 
+team_games <- shot.data %>%
+  group_by(opponent) %>%
+  summarize(Games_Against = length(unique(game_id)))
+team_percentage <- team_percentage %>% inner_join(team_games, by = "opponent")
 
 team_percentage$conference <- c("East", "East", "East", "East", "East", "East", "West", "West", "East", "West", "West", "East", "West", "West", "East", "East", "West", "East", "West", "West", "East", "West", "East", "East", "West", "West", "West", "West", "West", "East", "West", "West", "East")
 team_percentage$conference <- factor(team_percentage$conference)
@@ -166,5 +173,291 @@ ggplot(shot.type.small, aes(fct_reorder(combined_shot_type, FGPercent), FGPercen
   xlab("Shot type") +
   ylab("Field Goal Percentage") +
   coord_flip() + theme_clean()
+```
+
+
+```{r}
+arena <- read.csv("arenas.csv")
+nba.arena <- arena %>% filter(leagueName == "National Basketball Association") %>% 
+  select(teamName, venueName, lat, long)
+extra_teams <- data.frame(teamName = c("Vancouver Grizzlies", "Seattle SuperSonics", "New Orleans Hornets", "New Jersey Nets"), venueName = c("Rogers Arena", "Key Arena", "Pete Maravich Assembly Center", "Continental Airlines Arena"), lat = c(49.277836, 47.6200, 30.4143, 40.8116), long = c(-123.108823, -122.3525, -91.1846, -74.0676))
+nba.arena <- nba.arena %>% bind_rows(extra_teams) %>% 
+  filter(teamName != "Los Angeles Lakers", teamName != "Indianapolis Olympians") %>%
+  slice(c(1:2, 5:nrow(.))) %>%
+  mutate(id = 1:33)
+
+nba.arena$opponent <- c("ATL", "BOS", "BKN", "CHA", "CHI", "CLE", "DAL", "DEN", "DET", "GSW", "HOU", "IND", "LAC", "MEM", "MIA", "MIL", "MIN", "NOP", "NYK", "OKC", "ORL", "PHI", "PHX", "POR", "SAC", "SAS", "TOR", "UTA", "WAS", "VAN", "SEA", "NOH", "NJN")
+
+teams <- team_percentage %>% inner_join(nba.arena, by = "opponent")
+head(teams)
+
+mybreaks <- c(.4, .415, .43, .445, .46, .475)
+map <- map_data("world") %>% filter(region %in% c("Canada", "USA"))
+teams <- teams %>%
+  mutate(mytext = paste(teamName, "\n", venueName, "\n", "Conference: ", conference , "\n", "Games Against: ", Games_Against, "\n", "Field Goal Percentage: ", round(FGPercent*100, digits = 2), "%", sep = ""))
+p <- ggplot() +
+  geom_polygon(data = map, aes(x=long, y = lat, group = group), fill="grey", alpha=0.7) +
+  geom_point( data=teams, aes(x=long, y=lat, color=FGPercent, size = FGPercent, text = mytext)) +
+  scale_size_continuous(range=c(1,5), name = "Field Goal Percent", breaks = mybreaks) +
+  scale_color_viridis(option = "viridis", name = "Field Goal Percent", breaks = mybreaks) +
+  theme_void() +  coord_fixed(xlim = c(-135, -60),  ylim = c(20, 55), ratio = 1.2) + guides( colour = guide_legend()) + theme(legend.position = "bottom")
+
+p.anim <- ggplotly(p, tooltip = "text")
+
+p
+p.anim
+
+mytext_leaflet = paste(teams$teamName, "<br/>", teams$venueName, "<br/>", "Conference: ", teams$conference , "<br/>", "Games Against: ", teams$Games_Against, "<br/>", "Field Goal Percentage: ", round(teams$FGPercent*100, digits = 2), "%", sep = "") %>% lapply(htmltools::HTML)
+
+library(leaflet)
+
+mypalette <- colorBin(palette = "viridis", pretty = TRUE, domain = teams$FGPercent)
+
+teams %>%
+leaflet() %>%
+  addProviderTiles("Esri") %>%
+  addCircleMarkers(lng = ~long, lat = ~lat, label = mytext_leaflet,
+                   color = ~mypalette(FGPercent), radius = 7, 
+                   fillOpacity = 1, stroke = FALSE) %>%
+  addLegend(pal = mypalette, values = ~FGPercent, opacity = .75, title = "Field Goal Percent", position = "bottomleft")
+
+teams %>%
+leaflet() %>%
+  addProviderTiles("Esri") %>%
+  addCircleMarkers(lng = ~long, lat = ~lat, label = mytext_leaflet,
+                   color = ~mypalette(FGPercent), 
+                   fillOpacity = 1, stroke = FALSE, radius = ~(Games_Against/5)) %>%
+  addLegend(pal = mypalette, values = ~FGPercent, opacity = .75, title = "Field Goal Percent", position = "bottomleft")
+
+```
+
+
+```{r,warning=FALSE, message=FALSE}
+library(ggridges)
+library(hrbrthemes) 
+ggplot(kobe.filter, aes(x = shot_distance, y = season, fill = ..x..)) +
+  geom_density_ridges_gradient(scale = 2, rel_min_height = 0.01) +
+  scale_fill_viridis(option = "C") +
+  labs(title = 'Kobe Bryant Shot Distance by Season', y = "", x = "Shot distance (ft.)") +
+  theme_ipsum() +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)
+    )
+
+ggplot(kobe.filter, aes(x = shot_distance, y = as.factor(minutes_remaining), fill = ..x..)) +
+  geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+  scale_fill_viridis(option = "inferno") +
+  labs(title = 'Kobe Bryant Shot Distance by Minutes Remaining', y = "", x = "Shot distance (ft.)") +
+  theme_ipsum() +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)
+    )
+
+ggplot(kobe.filter, aes(x = shot_distance, y = shot_zone_area, fill = ..x..)) +
+  geom_density_ridges_gradient(scale = 1.5, rel_min_height = 0.01) +
+  scale_fill_viridis(option = "C") +
+  labs(title = 'Kobe Bryant Shot Distance by Area', y = "", x = "Shot distance (ft.)") +
+  theme_ipsum() +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)
+    )
+```
+
+```{r}
+season.fg <- shot.data %>% 
+  group_by(season) %>%
+  summarize(FGPercent = round(mean(shot_made_flag), digits = 4),
+            Percent2 = sum(shot_made_flag == 1 & shot_type == "2PT Field Goal")/sum(shot_type == "2PT Field Goal"),
+              percent3 = sum(shot_made_flag == 1 & shot_type == "3PT Field Goal")/sum(shot_type == "3PT Field Goal")) 
+
+library(hrbrthemes)
+ggplot(season.fg, aes(x = season, y = FGPercent)) +
+  geom_line(group = 1, color = "gray45") + 
+  geom_point(shape=21, color="black", fill="darkmagenta", size=4) + 
+  theme_fivethirtyeight() + scale_y_percent(limits = c(.33, .48)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + labs(title = "Kobe Bryant Field Goal Percentage Over Time")
+
+playoffs <- shot.data %>% 
+  filter(playoffs == 1) %>%
+  group_by(season) %>%
+  summarize(FGPercent = round(mean(shot_made_flag), digits = 4),
+            Percent2 = sum(shot_made_flag == 1 & shot_type == "2PT Field Goal")/sum(shot_type == "2PT Field Goal"),
+              percent3 = sum(shot_made_flag == 1 & shot_type == "3PT Field Goal")/sum(shot_type == "3PT Field Goal")) 
+
+reg.season <- shot.data %>% 
+  filter(playoffs == 0) %>%
+  group_by(season) %>%
+  summarize(FGPercent = round(mean(shot_made_flag), digits = 4),
+            Percent2 = sum(shot_made_flag == 1 & shot_type == "2PT Field Goal")/sum(shot_type == "2PT Field Goal"),
+              percent3 = sum(shot_made_flag == 1 & shot_type == "3PT Field Goal")/sum(shot_type == "3PT Field Goal"))
+
+ggplot(season.fg, aes(x = season, group = 1)) +
+  geom_line(data = playoffs, aes(color = "Play", y = FGPercent)) + 
+  geom_line(data = reg.season, aes(color = "Season", y = FGPercent)) + 
+  geom_point(data = playoffs, aes(color = "Play", y = FGPercent), size = 3) + 
+  geom_point(data = reg.season, aes(color = "Season", y = FGPercent), size = 3) +
+  scale_y_percent(limits = c(.33, .52)) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom", panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(linetype = "dashed")) + scale_color_manual(name ="", values = c("#195190FF", "#A2A2A1FF"), labels = c("Playoffs", "Regular Season")) + labs(x = "", y = "Percent", title = "Kobe Bryant Field Goal Percentage", subtitle = "Regular Season vs. Playoffs")
+
+ggplot(season.fg, aes(x = season, group = 1)) +
+  geom_line(aes(color = "Two", y = Percent2)) + 
+  geom_line(aes(color = "Three", y = percent3)) + 
+  geom_point(aes(color = "Two", y = Percent2), size = 3) + 
+  geom_point(aes(color = "Three", y = percent3), size = 3) +
+  scale_y_percent(limits = c(.15, .52)) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom", panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(linetype = "dashed")) + scale_color_manual(name ="", values = c("#195190FF", "#A2A2A1FF"), labels = c("2 PT", "3 PT")) + labs(x = "", y = "Percent", title = "Kobe Bryant Percentage", subtitle = "2 PT vs 3 PT")
+```
+
+```{r, message=FALSE, warning=FALSE}
+shot.area <- shot.data %>% 
+  filter(shot_distance <= 32) %>%
+  group_by(shot_zone_basic) %>%
+  summarize(shots_attempted = length(shot_made_flag),
+            shots_made = sum(shot_made_flag == 1),
+            mloc_x = mean(loc_x),
+            mloc_y = mean(loc_y),
+            shot_accuracy = shots_made/shots_attempted,
+            label = paste(round(shot_accuracy*100, digits = 1), "%", sep = ""))
+
+shot.area$mloc_y[shot.area$shot_zone_basic == "Above the Break 3"] <- shot.area$mloc_y[shot.area$shot_zone_basic == "Above the Break 3"] + 30
+
+shot.area$mloc_y[shot.area$shot_zone_basic == "Mid-Range"] <- shot.area$mloc_y[shot.area$shot_zone_basic == "Mid-Range"] + 35
+
+ggplot() + geom_point(data = shot.area, aes(x = mloc_x, y = mloc_y + 69, color = shot_zone_basic), size = 4) + geom_path(data = test.outer_key, aes(x= x, y = y)) + geom_path(data = test.perimeter, aes(x= x, y = y)) + geom_path(data = test.three, aes(x= x, y = y)) + ylim(-10, 350) +
+    geom_path(data = test.backboard, aes(x= x, y = y)) +
+    geom_path(data = test.neck, aes(x= x, y = y)) + 
+    geom_path(data = test.hoop, aes(x= x, y = y)) + 
+    geom_path(data = test.foul_circle, aes(x= x, y = y)) +
+    geom_path(data = test.restricted, aes(x= x, y = y)) + 
+    coord_fixed() + theme_void() + geom_text(data = shot.area, aes(x = mloc_x, y = mloc_y + 96, color =shot_zone_basic, label = label), size =5) + labs(title = "Kobe Bryant Shot Accuracy") + theme(plot.title = element_text(size = 17, face = "bold", hjust = .65), legend.title = element_blank())
+
+shot.area <- shot.area %>%
+  arrange(shots_attempted) %>%
+  mutate(shot_zone_basic = factor(shot_zone_basic, shot_zone_basic))
+ggplot(data = shot.area, aes(x = fct_reorder(shot_zone_basic, shots_attempted), y = shots_attempted)) +
+  geom_segment( aes(x=shot_zone_basic, xend=shot_zone_basic, y=0, yend=shots_attempted), color="#E10600FF", alpha = .6, size = .75) +
+  geom_point( color="#00239CFF", size=6) + theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  ) + labs(x = "", y = "Number of shots")
+
+shot.types <- shot.data %>% 
+  filter(shot_distance <= 32) %>%
+  group_by(combined_shot_type) %>%
+  summarize(shots_attempted = length(shot_made_flag)) %>%
+  arrange(shots_attempted) %>%
+  mutate(combined_shot_type = factor(combined_shot_type, combined_shot_type))
+
+ggplot(data = shot.types, aes(x = combined_shot_type, y = shots_attempted)) +
+  geom_segment( aes(x=combined_shot_type, xend=combined_shot_type, y=0, yend=shots_attempted), color="#E10600FF", alpha = .6, size = .75) +
+  geom_point( color="#00239CFF", size=6) + theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  ) + labs(x = "", y = "Number of shots")
+
+periods <- shot.data %>% 
+  filter(shot_distance <= 32) %>%
+  group_by(period, game_id) %>%
+  summarize(avg_shots_attempted = length(shot_made_flag)/length(unique(game_id))) %>%
+  ungroup() %>%
+  group_by(period) %>%
+  summarize(avg_shots_q = mean(avg_shots_attempted)) %>%
+  arrange(avg_shots_q) %>%
+  mutate(period = factor(period, period))
+
+levels(periods$period) <- c("2OT", "OT", "3OT", "2nd", "4th", "1st", "3rd")
+ggplot(data = periods, aes(x = period, y = avg_shots_q)) +
+  geom_segment( aes(x=period, xend=period, y=0, yend=avg_shots_q), color="#E10600FF", alpha = .6, size = .75) +
+  geom_point( color="#00239CFF", size=6) + theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.title = element_text(size = 14, face = "bold", hjust = .5)
+  ) + labs(x = "", y = "Average number of shots", title = "Kobe Bryant Average Shots Per Period")
+
+
+```
+
+```{r}
+minutes <- shot.data %>% 
+  filter(shot_distance <= 32) %>%
+  group_by(minutes_remaining) %>%
+  summarize(shots_attempted = length(shot_made_flag),
+            FGPercentage = round(mean(shot_made_flag) * 100), digits = 2) %>%
+  arrange(shots_attempted) %>%
+  mutate(minutes_remaining = factor(minutes_remaining, minutes_remaining))
+
+ggplot(data = minutes, aes(x = minutes_remaining, y = shots_attempted)) +
+  geom_segment( aes(x= minutes_remaining, xend= minutes_remaining, y=0, yend=shots_attempted), color="#E10600FF", alpha = .6, size = .75) +
+  geom_point( color="#00239CFF", size=6) + theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.title = element_text(size = 14, face = "bold", hjust = .5)
+  ) + labs(x = "", y = "Number of shots", title = "Shots for Minutes Remaining in the Quarter")
+
+
+minutes <- minutes %>%
+  arrange(FGPercentage) %>%
+  mutate(minutes_remaining = factor(minutes_remaining, minutes_remaining))
+ggplot(data = minutes, aes(x = minutes_remaining, y = FGPercentage)) +
+  geom_segment( aes(x= minutes_remaining, xend= minutes_remaining, y=0, yend=FGPercentage), color="#E10600FF", alpha = .6, size = .75) +
+  geom_point( color="#00239CFF", size=6) + theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.title = element_text(size = 14, face = "bold", hjust = .5)
+  ) + labs(x = "", y = "Field Goal Percentage", title = "Percentage for Minutes Remaining in the Quarter")
+```
+
+
+```{r}
+library(hexbin)
+ggplot(shotDataf, aes(x=LOC_X, y=LOC_Y)) + 
+    annotation_custom(court, -250, 250, -52, 418) +
+    stat_binhex(bins = 25, colour = "gray", alpha = 0.7) +
+    scale_fill_gradientn(colours = c("yellow","orange","red")) +
+    guides(alpha = FALSE, size = FALSE) +
+    xlim(250, -250) +
+    ylim(-52, 418) +
+    geom_rug(alpha = 0.2) +
+    coord_fixed() +
+    ggtitle(paste("Shot Chart\n", unique(shotDataf$PLAYER_NAME), sep = "")) +
+    theme(line = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        legend.title = element_blank(),
+        plot.title = element_text(size = 17, lineheight = 1.2, face = "bold"))
+     
+
+ggplot()  + geom_path(data = test.outer_key, aes(x= x, y = y)) + geom_path(data = test.perimeter, aes(x= x, y = y)) + geom_path(data = test.three, aes(x= x, y = y)) + ylim(-10, 350) +
+    geom_path(data = test.backboard, aes(x= x, y = y)) +
+    geom_path(data = test.neck, aes(x= x, y = y)) + 
+    geom_path(data = test.hoop, aes(x= x, y = y)) + 
+    geom_path(data = test.foul_circle, aes(x= x, y = y)) +
+    geom_path(data = test.restricted, aes(x= x, y = y)) + 
+    stat_binhex(data = kobe.filter, aes(x = loc_x, y = loc_y + 52), bins = 10, colour = "gray", alpha = 0.7) + 
+    scale_fill_gradientn(colours = c("yellow","orange","red")) +
+    guides(alpha = FALSE, size = FALSE) +
+    coord_fixed() + theme_void() + scale_color_gradientn(colors = col_scheme,limits = c(0,30), breaks = c(0, 30), name = 'Shot Distance (ft)') +
+    labs(title = "Kobe Bryant Shot Distance")
+head(kobe)
 ```
 
