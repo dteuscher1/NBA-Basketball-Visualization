@@ -111,15 +111,25 @@ shots_train <- shots_train %>% mutate(shot_made_flag = ifelse(shot_made_flag == 
 
 # Define resampling procedure as standard k-fold Cross Validations
 myControl <- trainControl(method = "cv", 
-                          number = 5, 
+                          number = 10, 
                           classProbs = TRUE,
                           summaryFunction = mnLogLoss
                           )
+
+tunegrid <- expand.grid(nrounds = 60,
+                        max_depth = 3,
+                        eta = .25,
+                        gamma = 0,
+                        colsample_bytree = .6,
+                        min_child_weight = 0,
+                        subsample = .75
+                        )
 
 xgbTree.model <- train(as.factor(shot_made_flag) ~ .,
                        data = shots_train,
                        method = "xgbTree",
                        trControl = myControl,
+                       tuneGrid = tunegrid,
                        metric = "logLoss"
                        )
 
