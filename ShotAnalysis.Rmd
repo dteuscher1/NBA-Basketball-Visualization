@@ -134,7 +134,6 @@ xgbTree.model <- train(as.factor(shot_made_flag) ~ .,
                        )
 
 print(xgbTree.model)
-xgbTree.model
 beepr::beep(sound = 2)
 ```
 
@@ -144,5 +143,23 @@ model.preds <- ifelse(model.preds == "Yes", 1, 0)
 test.id <- shots %>% filter(is.na(shot_made_flag)) %>% select(shot_id)
 xgbTree <- data.frame(shot_id = test.id, shot_made_flag = model.preds)
 write_csv(xgbTree, "xgbTree-preds.csv")
+```
+
+```{r}
+tunegrid <- expand.grid(mtry = c(60, 66, 72),
+                        splitrule = "gini",
+                        min.node.size = 1
+                        )
+
+ranger.model <- train(as.factor(shot_made_flag) ~ .,
+                      data = shots_train,
+                      method = "ranger",
+                      trControl = myControl,
+                      tuneGrid = tunegrid,
+                      metric = "logLoss"
+                      )
+
+print(ranger.model)
+beepr::beep(sound = 2)
 ```
 
