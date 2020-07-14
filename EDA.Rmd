@@ -308,7 +308,7 @@ ggplot(season.fg, aes(x = season, group = 1)) +
   geom_line(aes(color = "Three", y = percent3)) + 
   geom_point(aes(color = "Two", y = Percent2), size = 3) + 
   geom_point(aes(color = "Three", y = percent3), size = 3) +
-  scale_y_percent(limits = c(.15, .52)) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom", panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(linetype = "dashed")) + scale_color_manual(name ="", values = c("#195190FF", "#A2A2A1FF"), labels = c("2 PT", "3 PT")) + labs(x = "", y = "Percent", title = "Kobe Bryant Percentage", subtitle = "2 PT vs 3 PT")
+  scale_y_percent(limits = c(.15, .52)) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom", panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(linetype = "dashed")) + scale_color_manual(name ="", values = c("#195190FF", "#A2A2A1FF"), labels = c("3 PT", "2 PT")) + labs(x = "", y = "Percent", title = "Kobe Bryant Percentage", subtitle = "2 PT vs 3 PT")
 
 fg.distance <- shot.data %>%
   filter(shot_distance <= 32) %>%
@@ -319,7 +319,7 @@ fg.distance <- shot.data %>%
 ggplot(fg.distance, aes(x = shot_distance, y = FGPercent)) +
   geom_line(group = 1, color = "gray45") + 
   geom_point(shape=21, color="black", fill="darkmagenta", size=4) + 
-  theme_fivethirtyeight() + scale_y_percent(limits = c(0, .7)) + labs(title = "Kobe Bryant Field Goal Percentage Over Time", caption = "Distance (ft.)")
+  theme_fivethirtyeight() + scale_y_percent(limits = c(0, .7)) + labs(title = "Kobe Bryant Field Goal Percentage by Distance", caption = "Distance (ft.)")
 ```
 
 ```{r, message=FALSE, warning=FALSE}
