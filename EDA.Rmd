@@ -310,10 +310,21 @@ ggplot(season.fg, aes(x = season, group = 1)) +
   geom_point(aes(color = "Two", y = Percent2), size = 3) + 
   geom_point(aes(color = "Three", y = percent3), size = 3) +
   scale_y_percent(limits = c(.15, .52)) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom", panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(linetype = "dashed")) + scale_color_manual(name ="", values = c("#195190FF", "#A2A2A1FF"), labels = c("2 PT", "3 PT")) + labs(x = "", y = "Percent", title = "Kobe Bryant Percentage", subtitle = "2 PT vs 3 PT")
+
+fg.distance <- shot.data %>%
+  filter(shot_distance <= 32) %>%
+  mutate(shot_distance = factor(shot_distance)) %>%
+  group_by(shot_distance) %>%
+  summarize(FGPercent = round(mean(shot_made_flag), digits = 4))
+
+ggplot(fg.distance, aes(x = shot_distance, y = FGPercent)) +
+  geom_line(group = 1, color = "gray45") + 
+  geom_point(shape=21, color="black", fill="darkmagenta", size=4) + 
+  theme_fivethirtyeight() + scale_y_percent(limits = c(0, .7)) + labs(title = "Kobe Bryant Field Goal Percentage Over Time", caption = "Distance (ft.)")
 ```
 
 ```{r, message=FALSE, warning=FALSE}
-shot.area <- shot.data %>% 
+shot.area <- shot.data %>%
   filter(shot_distance <= 32) %>%
   group_by(shot_zone_basic) %>%
   summarize(shots_attempted = length(shot_made_flag),
@@ -388,6 +399,35 @@ ggplot(data = periods, aes(x = period, y = avg_shots_q)) +
   ) + labs(x = "", y = "Average number of shots", title = "Kobe Bryant Average Shots Per Period")
 
 
+shots.home <- shot.data %>%
+  mutate(home = ifelse(str_detect(matchup, "@")== FALSE, 1, 0)) %>%
+  filter(home == 1) %>%
+  group_by(season) %>%
+  summarize(FGPercent = round(mean(shot_made_flag), digits = 4),
+            Percent2 = sum(shot_made_flag == 1 & shot_type == "2PT Field Goal")/sum(shot_type == "2PT Field Goal"),
+              percent3 = sum(shot_made_flag == 1 & shot_type == "3PT Field Goal")/sum(shot_type == "3PT Field Goal")) 
+
+shots.away <- shot.data %>%
+  mutate(home = ifelse(str_detect(matchup, "@")== FALSE, 1, 0)) %>%
+  filter(home == 0) %>%
+  group_by(season) %>%
+  summarize(FGPercent = round(mean(shot_made_flag), digits = 4),
+            Percent2 = sum(shot_made_flag == 1 & shot_type == "2PT Field Goal")/sum(shot_type == "2PT Field Goal"),
+              percent3 = sum(shot_made_flag == 1 & shot_type == "3PT Field Goal")/sum(shot_type == "3PT Field Goal")) 
+
+ggplot(season.fg, aes(x = season, group = 1)) +
+  geom_line(data = shots.home, aes(color = "Home", y = FGPercent)) + 
+  geom_line(data = shots.away, aes(color = "Away", y = FGPercent)) + 
+  geom_point(data = shots.home, aes(color = "Home", y = FGPercent), size = 3) + 
+  geom_point(data = shots.away, aes(color = "Away", y = FGPercent), size = 3) +
+  scale_y_percent(limits = c(.33, .52)) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom", panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(linetype = "dashed"), plot.title = element_text(hjust = .5, face = "bold"), plot.subtitle = element_text(hjust = .5)) + scale_color_manual(name ="", values = c("#195190FF", "#A2A2A1FF"), labels = c("Home", "Away")) + labs(x = "", y = "Percent", title = "Kobe Bryant Field Goal Percentage", subtitle = "Home vs. Away")
+
+ggplot(season.fg, aes(x = season, group = 1)) +
+  geom_line(data = shots.home, aes(color = "Home", y = percent3)) + 
+  geom_line(data = shots.away, aes(color = "Away", y = percent3)) + 
+  geom_point(data = shots.home, aes(color = "Home", y = percent3), size = 3) + 
+  geom_point(data = shots.away, aes(color = "Away", y = percent3), size = 3) +
+  scale_y_percent(limits = c(0, .45)) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom", panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(linetype = "dashed"), plot.title = element_text(hjust = .5, face = "bold"), plot.subtitle = element_text(hjust = .5)) + scale_color_manual(name ="", values = c("#195190FF", "#A2A2A1FF"), labels = c("Home", "Away")) + labs(x = "", y = "Percent", title = "Kobe Bryant 3PT Percentage", subtitle = "Home vs. Away")
 ```
 
 ```{r}
@@ -512,4 +552,59 @@ made + miss
 
 
 
+```{r}
+source("https://github.com/toddwschneider/ballr/blob/master/hex_chart.R")
+
+ggplot(shot.data %>% filter(shot_distance > 2), aes(x = loc_x, y = loc_y + 52)) +
+  geom_hex(bins = 25, alpha = .7) + coord_fixed()
+library(shiny)
+test.hex <- calculate_hex_coords(shot.data, c(3, 3))
+head(test.hex)
+```
+
+```{r}
+
+eighty_one <- kobe %>%
+  filter(game_date == "2006-01-22") %>%
+  mutate(begin = runif(n(), 1, 100),
+         length = runif(n(), 5, 20),
+         enter = runif(n(), 5, 10),
+         exit = runif(n(), 5, 10))
+
+eighty_one$shot_made_flag[c(17, 24, 31, 37, 38, 42, 44)] <- c(1, 1, 1, 1, 0, 1, 1)
+library(gganimate)
+
+ggplot(data = eighty_one, aes(x = loc_x, y = loc_y + 52)) + geom_point(size = 2, alpha = .5) + 
+    coord_fixed() + transition_events(start = begin,
+                    end = 300,
+                    enter_length = enter,
+                    exit_length = exit) + enter_grow() + geom_path(data = test.outer_key, aes(x= x, y = y), color = "white") + geom_path(data = test.perimeter, aes(x= x, y = y), color = "white", na.rm = TRUE) + geom_path(data = test.three, aes(x= x, y = y), color = "white") + ylim(-10, 350) +
+    geom_path(data = test.backboard, aes(x= x, y = y),color = "white") +
+    geom_path(data = test.neck, aes(x= x, y = y),color = "white") + 
+    geom_path(data = test.hoop, aes(x= x, y = y),color = "white") + 
+    geom_path(data = test.foul_circle, aes(x= x, y = y),color = "white") +
+    geom_path(data = test.restricted, aes(x= x, y = y),color = "white") + 
+    coord_fixed() + theme_void()
+
+
+  head(eighty_one)
+  
+  data <- data.frame(
+  x = 1:10,
+  y = runif(10),
+  begin = runif(10, 1, 100),
+  length = runif(10, 5, 20),
+  enter = runif(10, 5, 10),
+  exit = runif(10, 5, 10)
+)
+
+anim <- ggplot(data, aes(x, y)) +
+  geom_point() +
+  transition_events(start = begin,
+                    end = begin + 100,
+                    enter_length = enter,
+                    exit_length = 100) +
+ enter_grow()
+anim
+```
 
