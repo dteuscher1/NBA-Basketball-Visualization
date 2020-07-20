@@ -73,7 +73,93 @@ ggplot(shots, aes(x = loc_r, y = shot_distance)) + geom_point(col = "blue")
 
 ```{r}
 # Removing unneeded variables
-shots_filtered <- shots %>% select(-c(shot_id, team_id, team_name, shot_zone_area, shot_zone_range, shot_zone_basic, matchup, lon, lat, seconds_remaining, minutes_remaining, shot_distance, loc_x, loc_y, game_event_id, game_id, game_date))
+shots_filtered <- shots %>% select(-c(shot_id, team_id, team_name, 
+                                      #shot_zone_area, shot_zone_range, shot_zone_basic, 
+                                      matchup, lon, lat, seconds_remaining, minutes_remaining, #shot_distance, 
+                                      loc_x, loc_y, game_event_id, game_id, game_date))
+```
+
+```{r}
+# Create test and training set
+
+# Removing NAs
+shots_filtered_test <- shots_filtered %>% filter(is.na(shot_made_flag)) #5000 shots where we don't know if it went in or not
+shots_filtered_train <- shots_filtered %>% filter(!is.na(shot_made_flag))
+
+# Setting the response variable
+train.y <- shots_filtered_train$shot_made_flag
+
+# Dropping the response variable from the training and test set
+shots_filtered_train$shot_made_flag <- NULL
+shots_filtered_test$shot_made_flag <- NULL
+
+# pred <- rep(0, nrow(test))
+```
+
+```{r}
+# Creating data.matrix
+trainM <- data.matrix(shots_filtered_train, rownames.force = NA)
+
+# Creating DMarix for xgboost 
+dtrain <- xgb.DMatrix(data = trainM, label = train.y, missing = NaN)
+
+watchlist <- list(trainM = dtrain)
+```
+
+```{r}
+param <- list(objective = "binary:logistic", 
+              booster = "gbtree",
+              eval_metric = "logloss",
+              eta = .035, #.25
+              max_depth = 4, # 3
+              subsample = .8, # .75
+              colsample_bytree = .8 # .6
+              )
+
+clf <- xgb.cv(params = param, 
+              data = dtrain, 
+              nrounds = 1500, # 150
+              verbose = 1,
+              watchlist = watchlist,
+              maximize = FALSE,
+              nfold = 5, # 10
+              early_stopping_rounds = 20,
+              print_every_n = 10
+              )
+```
+
+```{r}
+# Best round
+bestRound <- clf$best_iteration
+print(bestRound)
+```
+
+```{r}
+# Best result
+print(clf$evaluation_log[clf$best_iteration])
+```
+
+```{r}
+# Running the model
+xgb.model <- xgb.train(params = param, 
+                       data = dtrain, 
+                       nrounds = bestRound, 
+                       verbose = 1,
+                       watchlist = watchlist,
+                       maximize = FALSE
+                       )
+```
+
+```{r}
+# Creating a submission file
+testM <- data.matrix(shots_filtered_test, rownames.force = NA)
+preds <- predict(xgb.model, testM)
+submission <- data.frame(shot_id = test.id, shot_made_flag = preds)
+write.csv(submission, "XGBoost-preds.csv", row.names = FALSE)
+#.60374 => #306 out of 1117 on the Kaggle leaderboard ~72nd %tile
+
+# Including the shot_area and shot_distance variables (4)
+# .60321 => #273 out of 1117 on the Kaggle leaderboard ~75th %tile
 ```
 
 ```{r}
@@ -148,66 +234,6 @@ model.preds <- ifelse(model.preds == "Yes", 1, 0)
 test.id <- shots %>% filter(is.na(shot_made_flag)) %>% select(shot_id)
 xgbTree <- data.frame(shot_id = test.id, shot_made_flag = model.preds)
 write_csv(xgbTree, "xgbTree-preds.csv")
-```
-
-```{r}
-# Changing to response variable to be 1s and 0s to be able to use the xgboost package
-shots_train <- shots_train %>% mutate(shot_made_flag = ifelse(shot_made_flag == "Yes", 1, 0))
-
-cat("Creating data.matrix...\n")
-trainM <- data.matrix(shots_train, rownames.force = NA)
-cat("Creating DMarix for xgboost...\n")
-dtrain <- xgb.DMatrix(data = trainM, label = shots_train$shot_made_flag, missing = NaN)
-
-watchlist <- list(trainM = dtrain);
-```
-
-```{r}
-param <- list(objective = "binary:logistic", 
-              booster = "gbtree",
-              eval_metric = "logloss",
-              eta = .25, #.035
-              max_depth = 3, # 4
-              subsample = .75, # .8
-              colsample_bytree = .6 # .8
-              )
-
-clf <- xgb.cv(params = param, 
-              data = dtrain, 
-              nrounds = 150, # 1500
-              verbose = 1,
-              watchlist = watchlist,
-              maximize = FALSE,
-              nfold = 10, # 5
-              early_stopping_rounds = 20,
-              print_every_n = 10
-              )
-```
-
-```{r}
-bestRound <- clf$best_iteration
-cat("Best round:", bestRound,"\n")
-print("Best result:")
-print(clf$evaluation_log[clf$best_iteration],"\n")
-```
-
-```{r}
-xgb.model <- xgb.train(params = param, 
-                       data = dtrain, 
-                       nrounds = bestRound, 
-                       verbose = 1,
-                       watchlist = watchlist,
-                       maximize = FALSE
-                       )
-
-xgb.model
-```
-
-```{r}
-testM <- data.matrix(shots_test, rownames.force = NA)
-preds <- predict(xgb.model, testM)
-submission <- data.frame(shot_id = test.id, shot_made_flag = preds)
-write.csv(submission, "XGBoost-preds.csv", row.names = FALSE)
 ```
 
 ```{r}
