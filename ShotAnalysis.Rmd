@@ -92,8 +92,6 @@ train.y <- shots_filtered_train$shot_made_flag
 # Dropping the response variable from the training and test set
 shots_filtered_train$shot_made_flag <- NULL
 shots_filtered_test$shot_made_flag <- NULL
-
-# pred <- rep(0, nrow(test))
 ```
 
 ```{r}
