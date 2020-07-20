@@ -206,10 +206,8 @@ xgb.model
 ```{r}
 testM <- data.matrix(shots_test, rownames.force = NA)
 preds <- predict(xgb.model, testM)
-
 submission <- data.frame(shot_id = test.id, shot_made_flag = preds)
-cat("Saving the submission file\n")
-write.csv(submission, "XGBoost.csv", row.names = FALSE)
+write.csv(submission, "XGBoost-preds.csv", row.names = FALSE)
 ```
 
 ```{r}
