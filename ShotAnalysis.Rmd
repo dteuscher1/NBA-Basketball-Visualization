@@ -65,6 +65,26 @@ shots$away <- as.numeric(grepl("@", shots$matchup, fixed = TRUE))
 shots$home <- as.numeric(grepl("vs.", shots$matchup, fixed = TRUE))
 ```
 
+```{r}
+# Creating a variable indicating whether the shot was taken in the last 3 minutes of a quarter
+shots$lastquarter <- ifelse(shots$time_remaining <= 180, 1, 0)
+```
+
+```{r}
+# Numbering each of Kobe's games
+shots$game_num <- as.numeric(shots$game_date)
+
+# Ordering the data by game_num
+shots <- shots %>% arrange(game_num)
+```
+
+```{r}
+# Creating a variable for Kobe post Achilles tear
+shots$postachilles <- ifelse(shots$game_num > 1452, 1, 0)
+
+# Creating a variable for the seasons/games where Kobe was 1st team All NBA
+shots$first_team <- ifelse((shots$game_num >= 395 & shots$game_num <= 673) | (shots$game_num >= 740 & shots$game_num <= 1452), 1, 0)
+```
 
 ```{r}
 # Since we created polar coordinates for the shots, the loc_r variable is proportional to the shot_distance variable
@@ -109,9 +129,9 @@ param <- list(objective = "binary:logistic",
               booster = "gbtree",
               eval_metric = "logloss",
               eta = .035, #.25
-              max_depth = 4, # 3
-              subsample = .8, # .75
-              colsample_bytree = .8 # .6
+              max_depth = 3, # 3
+              subsample = .75, # .75
+              colsample_bytree = .6 # .6
               )
 
 clf <- xgb.cv(params = param, 
@@ -177,7 +197,7 @@ season_dummies <- data.frame(dummy(shots_filtered$season, sep = "_"))
 
 ```{r}
 # Adding in the dummy variables
-shots_dummies <- cbind(shots_filtered %>% select(-c(action_type, combined_shot_type, shot_type, opponent, period, season)), action_type_dummies, combined_shot_type_dummies, shot_type_dummies, opponent_dummies, period_dummies, season_dummies)
+shots_dummies <- cbind(shots_filtered %>% select(-c(action_type, combined_shot_type, shot_type, opponent, period, season, shot_distance, shot_zone_area, shot_zone_basic, shot_zone_range)), action_type_dummies, combined_shot_type_dummies, shot_type_dummies, opponent_dummies, period_dummies, season_dummies)
 ```
 
 ```{r}
@@ -186,6 +206,77 @@ shots_dummies <- cbind(shots_filtered %>% select(-c(action_type, combined_shot_t
 # Removing NAs
 shots_test <- shots_dummies %>% filter(is.na(shot_made_flag)) #5000 shots where we don't know if it went in or not
 shots_train <- shots_dummies %>% filter(!is.na(shot_made_flag))
+
+# Setting the response variable
+train.y <- shots_train$shot_made_flag
+
+# Dropping the response variable from the training and test set
+shots_train$shot_made_flag <- NULL
+shots_test$shot_made_flag <- NULL
+```
+
+```{r}
+# Creating data.matrix
+trainM <- data.matrix(shots_train, rownames.force = NA)
+
+# Creating DMarix for xgboost 
+dtrain <- xgb.DMatrix(data = trainM, label = train.y, missing = NaN)
+
+watchlist <- list(trainM = dtrain)
+```
+
+```{r}
+param <- list(objective = "binary:logistic", 
+              booster = "gbtree",
+              eval_metric = "logloss",
+              eta = .035, #.25
+              max_depth = 4, # 3
+              subsample = .8, # .75
+              colsample_bytree = .8 # .6
+              )
+
+clf <- xgb.cv(params = param, 
+              data = dtrain, 
+              nrounds = 1500, # 150
+              verbose = 1,
+              watchlist = watchlist,
+              maximize = FALSE,
+              nfold = 5, # 10
+              early_stopping_rounds = 20,
+              print_every_n = 10
+              )
+```
+
+```{r}
+# Best round
+bestRound <- clf$best_iteration
+print(bestRound)
+```
+
+```{r}
+# Best result
+print(clf$evaluation_log[clf$best_iteration])
+```
+
+```{r}
+# Running the model
+xgb.model2 <- xgb.train(params = param, 
+                        data = dtrain, 
+                        nrounds = bestRound, 
+                        verbose = 1,
+                        watchlist = watchlist,
+                        maximize = FALSE
+                        )
+```
+
+```{r}
+# Creating a submission file
+testM <- data.matrix(shots_test, rownames.force = NA)
+preds <- predict(xgb.model2, testM)
+submission <- data.frame(shot_id = test.id, shot_made_flag = preds)
+write.csv(submission, "XGBoost-preds2.csv", row.names = FALSE)
+# Not including the shot_area and shot_distance variables (4)
+# .60277 => #258 out of 1117 on the Kaggle leaderboard ~77th %tile
 ```
 
 ```{r}
