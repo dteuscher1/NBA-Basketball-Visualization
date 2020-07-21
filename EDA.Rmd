@@ -123,15 +123,31 @@ ggplot() +
 shot.data <- kobe %>%
     filter(!is.na(shot_made_flag))
 
-ggplot() + geom_point(data = shot.data, aes(x = loc_x, y = loc_y + 52, color = as.factor(shot_made_flag)), size = .75) + geom_path(data = test.outer_key, aes(x = x, y = y)) + geom_path(data = test.perimeter, aes(x = x, y = y)) + geom_path(data = test.three, aes(x= x, y = y)) + ylim(-10, 350) +
-    geom_path(data = test.backboard, aes(x = x, y = y)) +
-    geom_path(data = test.neck, aes(x = x, y = y)) + 
-    geom_path(data = test.hoop, aes(x = x, y = y)) + 
-    geom_path(data = test.foul_circle, aes(x = x, y = y)) +
-    geom_path(data = test.restricted, aes(x = x, y = y)) + 
-    coord_fixed() + theme_void() + scale_color_manual(values = c("#fdb927", "#552583"), labels = c("Miss", "Make"), name = "Zone Range") + guides(colour = guide_legend(reverse = TRUE, override.aes = list(size = 5))) +
-    labs(title = "Kobe Bryant Shot Distance")
-
+ggplot() + 
+  geom_point(data = shot.data, 
+             aes(x = loc_x, y = loc_y + 52, color = as.factor(shot_made_flag)), size = .75) + 
+  geom_path(data = test.outer_key, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.perimeter, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.three, 
+            aes(x = x, y = y)) + 
+  ylim(-10, 350) +
+  geom_path(data = test.backboard, 
+            aes(x = x, y = y)) +
+  geom_path(data = test.neck, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.hoop, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.foul_circle, 
+            aes(x = x, y = y)) +
+  geom_path(data = test.restricted, 
+            aes(x = x, y = y)) + 
+  coord_fixed() +
+  theme_void() + 
+  scale_color_manual(values = c("#fdb927", "#552583"), labels = c("Miss", "Make"), name = "Zone Range") + 
+  guides(colour = guide_legend(reverse = TRUE, override.aes = list(size = 5))) +
+  labs(title = "Kobe Bryant Shot Distance")
 ```
 
 ```{r, warning = FALSE, message = FALSE}
