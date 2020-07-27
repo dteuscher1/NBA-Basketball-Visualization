@@ -67,7 +67,7 @@ shots$home <- as.numeric(grepl("vs.", shots$matchup, fixed = TRUE))
 
 ```{r}
 # Creating a variable indicating whether the shot was taken in the last 3 minutes of a quarter
-shots$lastquarter <- ifelse(shots$time_remaining <= 180, 1, 0)
+shots$lastminutes <- ifelse(shots$time_remaining <= 180, 1, 0)
 ```
 
 ```{r}
@@ -82,8 +82,37 @@ shots <- shots %>% arrange(game_num)
 # Creating a variable for Kobe post Achilles tear
 shots$postachilles <- ifelse(shots$game_num > 1452, 1, 0)
 
-# Creating a variable for the seasons/games where Kobe was 1st team All NBA
+# 1st team All NBA
+# 2001-02 Regular Season => 395-474
+# 2002-03 Regular Season => 
+# 2003-04 Regular Season =>
+# 2005-06 Regular Season => 740-819
+# 2006-07 Regular Season => 827-903
+# 2007-08 Regular Season => 909-990
+# 2008-09 Regular Season =>
+# 2009-10 Regular Season =>
+# 2010-11 Regular Season =>
+# 2011-12 Regular Season =>
+# 2012-13 Regular Season =>
 shots$first_team <- ifelse((shots$game_num >= 395 & shots$game_num <= 673) | (shots$game_num >= 740 & shots$game_num <= 1452), 1, 0)
+
+# Scoring Leader
+# 2005-06 Regular Season => 740-819
+# 2006-07 Regular Season => 827-903
+shots$scoring_leader <- ifelse((shots$game_num >= 740 & shots$game_num <= 819) | (shots$game_num >= 827 & shots$game_num <= 903), 1, 0)
+
+# MVP
+# 2007-08 Regular Season => 909-990
+shots$mvp <- ifelse(shots$game_num >= 909 & shots$game_num <= 990, 1, 0)
+
+# Finals MVP
+# 2008-09 Finals => 1112-1116
+# 2009-10 Finals => 1206-1212
+shots$finals_mvp <- ifelse((shots$game_num >= 1112 & shots$game_num <= 1116) | (shots$game_num >= 1206 & shots$game_num <= 1212), 1, 0)
+
+# num_rings
+# with shaq
+# with pau
 ```
 
 ```{r}
