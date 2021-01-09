@@ -3,10 +3,22 @@ title: "Kobe Bryant EDA"
 output: html_document
 ---
 
+# Purpose
+
+The purpose of this notebook is to show the many different ways to visualize the data from this competition. Given that the dataset provides a lot of information about the shot location, shot distance, opponents, and type of shot, there is a lot that can be discovered. This notebook can be a guide as an example of how to visualize NBA shot data in unique ways besides the most convenient graphs of scatterplots, histograms, and bar plots.
+
+A number of ideas for visualizations came from the [R Graph Gallery](https://www.r-graph-gallery.com/). There are many examples of different types of visualizations and is worth exploring if you want to try to improve or diversify the visualizations that you make.
+
+This notebook does not have anything with fitting a model for this competition, but a good notebook that goes over feature engineering and fitting a model for this competition can be found [here](https://www.kaggle.com/matt4byu/kobe-bryant-shot-selection-analysis-with-xgboost). In the future, I may create a second notebook that goes over model fitting and how well my model can do in this competition. 
+
+# Introduction and Getting Started
+
+The data provided contains location and circumstance information about every field goal attempt by Kobe Bryant over the course of his career with the Los Angeles Lakers. The goal of this competition is to determine whether or not Kobe made or missed a certain shot. The different visualizations help to better understand the data better and to potentially understand additional features to consider when doing feature engineering.
+
+Here are all of the packages that are used in this analysis.
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 library(devtools)
-#install_github("rtelmore/ballr")
 library(ballr)
 library(tidyverse)
 library(RColorBrewer)
@@ -15,140 +27,86 @@ library(ggthemes)
 library(viridis)
 library(maps)
 library(plotly)
+library(leaflet)
+library(ggridges)
+library(hrbrthemes)
+library(patchwork)
+library(lubridate)
+library(ggalt)
+library(gganimate)
 ```
 
-Read in the data
-```{r, echo=FALSE}
-kobe <- read.csv("data.csv")
-```
+The data is contained in a single file, instead of a separate train and test file, so we will read it into a single date frame. I will create a dataset that has only the shots where it is known whether or not the shot was made, which will be used for some of the visualizations below. I also remove any shots that were further than 30 feet away from the basket for some of the visualizations because most of his shots were within 30 feet unless it was at the end of the shot clock or end of the quarter. 
 
-```{r, warning=FALSE, message=FALSE, echo=FALSE}
-source("Court.R") # This will source the script I used to make the court. 
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+kobe <- read_csv("data.csv")
+shot.data <- kobe %>%
+    filter(!is.na(shot_made_flag))
 kobe.filter <- kobe %>% 
     filter(shot_distance <= 30) %>%
     mutate(shot_zone_range = factor(shot_zone_range, 
                                     levels = c("Less Than 8 ft.", "8-16 ft.", "16-24 ft.", "24+ ft.")))
-col_scheme <- c("firebrick4","darkorange2","gold1",
-                "chartreuse4","dodgerblue", "darkorchid4")
-
-ggplot() + 
-  geom_point(data = kobe.filter, 
-             aes(x = loc_x, y = loc_y + 52, color = shot_distance), 
-             size = .4) + 
-  geom_path(data = test.outer_key, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.perimeter, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.three, 
-            aes(x = x, y = y)) + 
-  ylim(-10, 350) +
-  geom_path(data = test.backboard, 
-            aes(x = x, y = y)) +
-  geom_path(data = test.neck, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.hoop, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.foul_circle, 
-            aes(x = x, y = y)) +
-  geom_path(data = test.restricted, 
-            aes(x = x, y = y)) + 
-  coord_fixed() + 
-  theme_void() + 
-  scale_color_gradientn(colors = col_scheme,
-                        limits = c(0,30), 
-                        breaks = c(0, 30), 
-                        name = 'Shot Distance (ft)') +
-  labs(title = "Kobe Bryant Shot Distance")
 ```
 
-``````{r, warning = FALSE, message = FALSE}
-ggplot() + 
-  geom_point(data = kobe.filter, 
-             aes(x = loc_x, y = loc_y + 52, color = shot_zone_range), 
-             size = .4) + 
-  geom_path(data = test.outer_key, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.perimeter, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.three, 
-            aes(x = x, y = y)) + 
-  ylim(-10, 350) +
-  geom_path(data = test.backboard, 
-            aes(x = x, y = y)) +
-  geom_path(data = test.neck, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.hoop, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.foul_circle, 
-            aes(x = x, y = y)) +
-  geom_path(data = test.restricted, 
-            aes(x = x, y = y)) + 
-  coord_fixed() + 
-  theme_void() + 
-  scale_color_manual(values = c("#D92027", "#FF9234", "#FFCD3C", "#35D0BA"), 
-                     name = "Zone Range") + 
-  guides(colour = guide_legend(reverse = TRUE, override.aes = list(size = 5))) +
-  labs(title = "Kobe Bryant Shot Zone Range")
+This code here creates the court that is used for a number of the visualizations, so I will run it at the beginning so it is available for any of the visualizations that follow.
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+library(ballr)
+source("https://raw.githubusercontent.com/toddwschneider/ballr/master/plot_court.R")
+source("https://raw.githubusercontent.com/toddwschneider/ballr/master/court_themes.R")
+object <- plot_court()
+
+court_points <- court_points %>%
+    mutate(desc = factor(desc),
+           x = x*10,
+           y = y*10)
+
+test.three <- court_points %>% filter(desc == "three_point_line")
+test.perimeter <- court_points %>% filter(desc == "perimeter")
+test.outer_key <- court_points %>% filter(desc == "outer_key")
+test.backboard <- court_points %>% filter(desc == "backboard")
+test.neck <- court_points %>% filter(desc == "neck")
+test.hoop <- court_points %>% filter(desc == "hoop")
+test.foul_circle <- court_points %>% filter(desc == "foul_circle_top")
+test.restricted <- court_points %>% filter(desc == "restricted")
 ```
-```{r, warning = FALSE, message = FALSE}
-ggplot() + 
-  geom_point(data = kobe.filter, 
-             aes(x = loc_x, y = loc_y + 52, color = shot_zone_area), 
-             size = .4) + 
-  geom_path(data = test.outer_key, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.perimeter, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.three, 
-            aes(x = x, y = y)) + 
-  ylim(-10, 350) +
-  geom_path(data = test.backboard, 
-            aes(x = x, y = y)) +
-  geom_path(data = test.neck, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.hoop, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.foul_circle, 
-            aes(x = x, y = y)) +
-  geom_path(data = test.restricted, 
-            aes(x = x, y = y)) + 
-  coord_fixed() + 
-  theme_void() + 
-  scale_color_manual(values = col_scheme, name = "Zone Range") + 
-  guides(color = guide_legend(reverse = TRUE, override.aes = list(size = 5))) +
-  labs(title = "Kobe Bryant Shot Zone Range")
-```
+
+# Shot Type Visualization
+
+The first type of visualizations are related to the different types of shots and percentage for those different shots. There are a lot of different shot types on this first plot, but it is pretty easy to tell that Kobe made dunks and layups at a higher percentage than jump shots. 
 
 ```{r, warning = FALSE, message = FALSE}
-shot.data <- kobe %>%
-    filter(!is.na(shot_made_flag))
+shot.type <- shot.data %>%
+  group_by(action_type) %>%
+  summarize(FGPercent = round(mean(shot_made_flag) * 100, digits = 2))
 
-ggplot() + 
-  geom_point(data = shot.data, 
-             aes(x = loc_x, y = loc_y + 52, color = as.factor(shot_made_flag)), size = .75) + 
-  geom_path(data = test.outer_key, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.perimeter, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.three, 
-            aes(x = x, y = y)) + 
-  ylim(-10, 350) +
-  geom_path(data = test.backboard, 
-            aes(x = x, y = y)) +
-  geom_path(data = test.neck, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.hoop, 
-            aes(x = x, y = y)) + 
-  geom_path(data = test.foul_circle, 
-            aes(x = x, y = y)) +
-  geom_path(data = test.restricted, 
-            aes(x = x, y = y)) + 
-  coord_fixed() +
-  theme_void() + 
-  scale_color_manual(values = c("#fdb927", "#552583"), labels = c("Miss", "Make"), name = "Zone Range") + 
-  guides(colour = guide_legend(reverse = TRUE, override.aes = list(size = 5))) +
-  labs(title = "Kobe Bryant Shot Distance")
+ggplot(shot.type, aes(fct_reorder(action_type, FGPercent), FGPercent)) +
+  geom_bar(stat = "identity", fill = "#fdb927") + 
+  geom_point(color = "#552583") +
+  xlab("Shot type") +
+  ylab("Field Goal Percentage") +
+  coord_flip()
 ```
+
+This graphic simplifies the shot type into six different shot types and it isn't surprising that dunks and layups have a high percentage. Bank shots and hook shots are also shots that are likely closer to the basket, so it makes sense that they have a high field goal percentage as well. Jump shots are further away from the basket and so it makes sense that they have a lower field goal percentage as well. 
+
+```{r, warning = FALSE, message = FALSE}
+shot.type.small <- shot.data %>%
+  group_by(combined_shot_type) %>%
+  summarize(FGPercent = round(mean(shot_made_flag) * 100, digits = 2))
+
+ggplot(shot.type.small, aes(fct_reorder(combined_shot_type, FGPercent), FGPercent)) +
+  geom_bar(stat = "identity", fill = "#fdb927") + 
+  geom_point(color = "#552583", size = 3) +
+  xlab("Shot type") +
+  ylab("Field Goal Percentage") +
+  coord_flip() + theme_clean()
+```
+
+# Field Goal Percentage vs. Opponent
+
+The data included the opponent for each game, which allowed me to calculate the field goal percentage for Kobe Bryant against each team. A circular barplot was produced to show the percentage against each team between the different conferences. Over his career, Kobe played more games against teams in the Western Conference than the Eastern Conference so those teams will have more games played against them. I used resources from [R Graph Gallery](https://www.r-graph-gallery.com/circular-barplot.html). to figure out how to create the circular bargraph. 
+As the plot below shows, Kobe shot the worst against the New Orleans Pelicans and the Brooklyn Nets. This isn't very surprising because the Pelicans were previously the New Orleans Hornets and the Nets were previously the New Jersey Nets. When the teams switched names or cities, it was later in Kobe's career when he dealt with more injuries and shot at a lower percentage than earlier in his career. On the other hand, Kobe shot the best against the Vancouver Grizzlies and the New York Knicks. The Vancouver Grizzlies were only located in Vancouver at the beginning of his career and then eventually moved to Memphis, so his field goal percentage is higher than most other teams. There doesn't seem to be much of a logical explanation why Kobe shot the best against the Knicks though. It seems that the attention that comes from playing in New York seemed to motivate Kobe to play better against the Knicks. The Knicks have also been a poor team most of Kobe's career, so it isn't extremely surprising that he would shoot extremely well against them. 
 
 ```{r, warning = FALSE, message = FALSE}
 team_percentage <- shot.data %>% 
@@ -177,8 +135,9 @@ team_percentage$id <- seq(1, nrow(team_percentage))
 label_data <- team_percentage
 number_of_bar <- nrow(label_data)
 angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
-label_data$hjust <- ifelse( angle < -90, 1, 0)
-label_data$angle <- ifelse(angle < -90, angle+180, angle)
+label_data$hjust <- ifelse( angle <= -90, 1, 0)
+label_data$angle <- ifelse(angle <= -90, angle+180, angle)
+
 
 base_data <- team_percentage %>% 
   group_by(conference) %>% 
@@ -216,37 +175,14 @@ ggplot(team_percentage, aes(x=as.factor(id), y=FGPercent*100, fill=conference)) 
     plot.margin = unit(rep(-1,4), "cm") 
   ) +
   coord_polar() + 
-  geom_text(data=label_data, aes(x=id, y=(FGPercent*100)+10, label=paste(opponent, " ",  round(FGPercent*100, digits = 2), "%", sep = ""), hjust=hjust), color="black", fontface="bold",alpha=0.6, size=2.5, angle= label_data$angle, inherit.aes = FALSE ) +
+  geom_text(data=label_data, aes(x=id, y=(FGPercent*100)+10, label=paste(opponent, " ",  round(FGPercent*100, digits = 2), "%", sep = ""), hjust=hjust), color="black", fontface="bold",alpha=0.6, size=2.5, angle= label_data$angle, inherit.aes = FALSE) +
   # Add base line information
   geom_segment(data=base_data, aes(x = start, y = -5, xend = end, yend = -5), colour = "black", alpha=0.8, size=0.6 , inherit.aes = FALSE )  +
-  geom_text(data=base_data, aes(x = title, y = -18, label=conference), hjust=c(1,0), colour = "black", alpha=0.8, size=4, fontface="bold", inherit.aes = FALSE) + labs(title ="Kobe Bryant Field Goal Percentage by Team") + scale_fill_manual(values = c("#0168ad", "#ed174b"))
-
-```
-```{r, warning = FALSE, message = FALSE}
-shot.type <- shot.data %>%
-  group_by(action_type) %>%
-  summarize(FGPercent = round(mean(shot_made_flag) * 100, digits = 2))
-
-ggplot(shot.type, aes(fct_reorder(action_type, FGPercent), FGPercent)) +
-  geom_bar(stat = "identity", fill = "#fdb927") + 
-  geom_point(color = "#552583") +
-  xlab("Shot type") +
-  ylab("Field Goal Percentage") +
-  coord_flip()
+  geom_text(data=base_data, aes(x = title, y = -19, label=conference), hjust=c(1,0), colour = "black", alpha=0.8, size=4, fontface="bold", inherit.aes = FALSE) + labs(title ="Kobe Bryant Field Goal Percentage by Team") + scale_fill_manual(values = c("#0168ad", "#ed174b"))
 ```
 
-```{r, warning = FALSE, message = FALSE}
-shot.type.small <- shot.data %>%
-  group_by(combined_shot_type) %>%
-  summarize(FGPercent = round(mean(shot_made_flag) * 100, digits = 2))
+I also made a few maps that show the field goal percentage against different opponents. I have a data set that includes the latitude and longitude for NBA arenas and that was used to create the map. The colors of the dots correspond with the field goal percentage against each team and then the size of the dots correspond with the number of games played against each team. The interactive maps include a hover tool that tell the name of the team, the arena name, the number of games played against the team, and the exact field goal percentage against the team. These visualizations don't necessarily provide additional information about how Kobe performed against certain teams, but it presents the information in an interesting way for someone to explore. 
 
-ggplot(shot.type.small, aes(fct_reorder(combined_shot_type, FGPercent), FGPercent)) +
-  geom_bar(stat = "identity", fill = "#fdb927") + 
-  geom_point(color = "#552583", size = 3) +
-  xlab("Shot type") +
-  ylab("Field Goal Percentage") +
-  coord_flip() + theme_clean()
-```
 ```{r, warning = FALSE, message = FALSE}
 arena <- read.csv("arenas.csv")
 nba.arena <- arena %>% filter(leagueName == "National Basketball Association") %>% 
@@ -279,7 +215,7 @@ p.anim
 
 mytext_leaflet = paste(teams$teamName, "<br/>", teams$venueName, "<br/>", "Conference: ", teams$conference , "<br/>", "Games Against: ", teams$Games_Against, "<br/>", "Field Goal Percentage: ", round(teams$FGPercent*100, digits = 2), "%", sep = "") %>% lapply(htmltools::HTML)
 
-library(leaflet)
+
 
 mypalette <- colorBin(palette = "viridis", pretty = TRUE, domain = teams$FGPercent)
 
@@ -300,10 +236,18 @@ leaflet() %>%
   addLegend(pal = mypalette, values = ~FGPercent, opacity = .75, title = "Field Goal Percent", position = "bottomleft")
 
 ```
-```{r,warning = FALSE, message = FALSE}
-library(ggridges)
-library(hrbrthemes) 
 
+# Shot Distributions
+
+Next, I thought it would be useful to look at ridgeline plots for the distribution of shot distance against various variables. 
+
+The first plot shows the density of the shot distance for each season. At the beginning of his career, Kobe was often taking shots that are in the paint and then it seemed that mid-range jump shots were very common for him as well. He didn't attempt as many three-pointers at the beginning of his career. As his career (and the NBA) evolved, he began to shot more threes, while also still getting to the basket a lot. 
+
+The most drastic change in where he was taking his shots from occurs after he tears his Achilles, which isn't very surprising. After the injury, he didn't have the same quick first step and was unable to get to the basket as easily. As a result, he began to take more shots further away from the basket since those are the shots that he was able to get easier. By his final season, most of this shots were jump shots or three, which again is not surprising if you watched any of his games from his final season. 
+
+From this plot, I would say that it is likely that Kobe's field goal percentage is likely to be lower after his injury because he was taking more jump shots and got fewer layups and dunks, which were the shots that he (and all NBA players make) at a higher percentage than jump shots. 
+
+```{r,warning = FALSE, message = FALSE}
 ggplot(kobe.filter, aes(x = shot_distance, y = season, fill = ..x..)) +
   geom_density_ridges_gradient(scale = 2, rel_min_height = 0.01) +
   scale_fill_viridis(option = "C") +
@@ -315,6 +259,8 @@ ggplot(kobe.filter, aes(x = shot_distance, y = season, fill = ..x..)) +
       strip.text.x = element_text(size = 8)
     )
 ```
+
+Next I wanted to see if the distribution of shots changed based on the number of minutes remaining in the game. At the end of the game, you would expect teams to prevent getting to the basket for a layup, especially if the game is close. For the most part, it seems that the shot distribution is about the same regardless how much time is left. There is a spike of mid range jumpers in the first minute of a quarter and there also seems to be more 3-point shots in the last minute, which makes sense since a lot of the time teams need a 3 to tie or win the game or there is little time to get a shot off at the end of a quarter. Besides those two situations, it appears that the shot distribution for Kobe was very similar regardless of how much time was left. 
 
 ```{r, warning = FALSE, message = FALSE}
 ggplot(kobe.filter, aes(x = shot_distance, y = as.factor(minutes_remaining), fill = ..x..)) +
@@ -328,18 +274,11 @@ ggplot(kobe.filter, aes(x = shot_distance, y = as.factor(minutes_remaining), fil
       strip.text.x = element_text(size = 8)
     )
 ```
-``````{r, warning = FALSE, message = FALSE}
-ggplot(kobe.filter, aes(x = shot_distance, y = shot_zone_area, fill = ..x..)) +
-  geom_density_ridges_gradient(scale = 1.5, rel_min_height = 0.01) +
-  scale_fill_viridis(option = "C") +
-  labs(title = 'Kobe Bryant Shot Distance by Area', y = "", caption = "Shot distance (ft.)") +
-  theme_fivethirtyeight() +
-    theme(
-      legend.position="none",
-      panel.spacing = unit(0.1, "lines"),
-      strip.text.x = element_text(size = 8)
-    )
-```
+
+# Field Goal Percentage Over Time
+
+The next few plots look at Kobe's shooting percentage of the course of his career. The first few years of his career, Kobe had a lower field goal percentage, which isn't very surprising since rookies tend to have an adjustment period and struggle during the start of their career. The next seasons were relatively consistent, with some fluctuation from year to year, but there wasn't a sharp decline in field goal percentage until Kobe suffered his Achilles injury. 
+
 ```{r, warning = FALSE, message = FALSE}
 season.fg <- shot.data %>% 
   group_by(season) %>%
@@ -347,14 +286,16 @@ season.fg <- shot.data %>%
             Percent2 = sum(shot_made_flag == 1 & shot_type == "2PT Field Goal")/sum(shot_type == "2PT Field Goal"),
               percent3 = sum(shot_made_flag == 1 & shot_type == "3PT Field Goal")/sum(shot_type == "3PT Field Goal")) 
 
-library(hrbrthemes)
+
 ggplot(season.fg, aes(x = season, y = FGPercent)) +
   geom_line(group = 1, color = "gray45") + 
   geom_point(shape = 21, color = "black", fill = "darkmagenta", size = 4) + 
   theme_fivethirtyeight() + scale_y_percent(limits = c(.33, .48)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + labs(title = "Kobe Bryant Field Goal Percentage Over Time")
 ```
 
-``````{r, warning = FALSE, message = FALSE}
+It was also useful to compare field goal percentage between the regular season and the playoffs. The teams in the playoffs will play harder, make more of an effort on defense, and are in general better teams, so it wouldn't be surprising if the field goal percentage is lower during the playoffs. From the plot below, it appears that this trend holds up and in general, Kobe shot a lower percentage during the playoffs than he did during the regular season. There are a few seasons where he was better in the playoffs, but this is also likely due to the smaller sample size in the playoffs since the most games that Kobe ever played in the playoffs was 23 games. 
+
+```{r, warning = FALSE, message = FALSE}
 playoffs <- shot.data %>% 
   filter(playoffs == 1) %>%
   group_by(season) %>%
@@ -376,8 +317,9 @@ ggplot(season.fg, aes(x = season, group = 1)) +
   geom_point(data = reg.season, aes(color = "Season", y = FGPercent), size = 3) +
   scale_y_percent(limits = c(.33, .52)) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom", panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(linetype = "dashed")) + scale_color_manual(name ="", values = c("#195190FF", "#A2A2A1FF"), labels = c("Playoffs", "Regular Season")) + labs(x = "", y = "Percent", title = "Kobe Bryant Field Goal Percentage", subtitle = "Regular Season vs. Playoffs")
 ```
+It is also important to look at the type of shots. Almost all NBA players shoot a higher percentage on 2 point attempts than 3-point attempts, which is also the case with Kobe. The 3-point shot hadn't become extremely popular in the NBA during most of Kobe's career, which is probably one reason that he shot so much lower from 3, but in general Kobe wasn't considered a great 3-point shooter as well. A lot of his shots were highly contested and off the dribble. Catch and shoot threes are shot at a lot higher percentage than other 3s, but Kobe very rarely played off the ball during his career, so it isn't surprising that he was a lot worse from 3. 
 
-``````{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE}
 ggplot(season.fg, aes(x = season, group = 1)) +
   geom_line(aes(color = "Two", y = Percent2)) + 
   geom_line(aes(color = "Three", y = percent3)) + 
@@ -386,7 +328,9 @@ ggplot(season.fg, aes(x = season, group = 1)) +
   scale_y_percent(limits = c(.15, .52)) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom", panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(linetype = "dashed")) + scale_color_manual(name ="", values = c("#195190FF", "#A2A2A1FF"), labels = c("3 PT", "2 PT")) + labs(x = "", y = "Percent", title = "Kobe Bryant Percentage", subtitle = "2 PT vs 3 PT")
 ```
 
-``````{r, warning = FALSE, message = FALSE}
+I thought it would also be interesting to see the field goal percentage based on distance away from the basket. Shots that are right next to the basket have the highest percentage and then the percentage slowly decreases the further away from the basket until you get to deep three pointers (27+ feet away) where there is a drastic decline in field goal percentage, since Kobe generally didn't shot those shots and they were likely end of shot clock or end of quarter shots. 
+
+```{r, warning = FALSE, message = FALSE}
 fg.distance <- shot.data %>%
   filter(shot_distance <= 32) %>%
   mutate(shot_distance = factor(shot_distance)) %>%
@@ -398,6 +342,48 @@ ggplot(fg.distance, aes(x = shot_distance, y = FGPercent)) +
   geom_point(shape=21, color="black", fill="darkmagenta", size=4) + 
   theme_fivethirtyeight() + scale_y_percent(limits = c(0, .7)) + labs(title = "Kobe Bryant Field Goal Percentage by Distance", caption = "Distance (ft.)")
 ```
+
+I thought it would be interesting to see if there was any difference in field goal percentage for Kobe based on whether or not it was a home game for him. In baseball for example, home and road splits are often very different because of the climate and park layout. With basketball, you wouldn't expect the splits to be as different because the courts are all the same size and they are played in a controlled indoor environment. The graph below seems to support the idea that there isn't much of a difference between home and road splits. There are some years where Kobe shot better at home and some years he was better on the road, so it doesn't seem like there is anything specific that causes the difference in home and road field goal percentage besides year to year variation. The same pattern is discovered if we look at 3 point percentage for home and away games, so it seems there is only year to year variation for his shooting percentage at home and on the road and there is no benefit to playing on his home court. 
+
+```{r, warning = FALSE, message = FALSE}
+shots.home <- shot.data %>%
+  mutate(home = ifelse(str_detect(matchup, "@") == FALSE, 1, 0)) %>%
+  filter(home == 1) %>%
+  group_by(season) %>%
+  summarize(FGPercent = round(mean(shot_made_flag), digits = 4),
+            Percent2 = sum(shot_made_flag == 1 & shot_type == "2PT Field Goal")/sum(shot_type == "2PT Field Goal"),
+              percent3 = sum(shot_made_flag == 1 & shot_type == "3PT Field Goal")/sum(shot_type == "3PT Field Goal")) 
+
+shots.away <- shot.data %>%
+  mutate(home = ifelse(str_detect(matchup, "@")== FALSE, 1, 0)) %>%
+  filter(home == 0) %>%
+  group_by(season) %>%
+  summarize(FGPercent = round(mean(shot_made_flag), digits = 4),
+            Percent2 = sum(shot_made_flag == 1 & shot_type == "2PT Field Goal")/sum(shot_type == "2PT Field Goal"),
+              percent3 = sum(shot_made_flag == 1 & shot_type == "3PT Field Goal")/sum(shot_type == "3PT Field Goal")) 
+
+ggplot(season.fg, aes(x = season, group = 1)) +
+  geom_line(data = shots.home, aes(color = "Home", y = FGPercent)) + 
+  geom_line(data = shots.away, aes(color = "Away", y = FGPercent)) + 
+  geom_point(data = shots.home, aes(color = "Home", y = FGPercent), size = 3) + 
+  geom_point(data = shots.away, aes(color = "Away", y = FGPercent), size = 3) +
+  scale_y_percent(limits = c(.33, .52)) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom", panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(linetype = "dashed"), plot.title = element_text(hjust = .5, face = "bold"), plot.subtitle = element_text(hjust = .5)) + scale_color_manual(name ="", values = c("#195190FF", "#A2A2A1FF"), labels = c("Home", "Away")) + labs(x = "", y = "Percent", title = "Kobe Bryant Field Goal Percentage", subtitle = "Home vs. Away")
+```
+
+```{r, warning = FALSE, message = FALSE}
+ggplot(season.fg, aes(x = season, group = 1)) +
+  geom_line(data = shots.home, aes(color = "Home", y = percent3)) + 
+  geom_line(data = shots.away, aes(color = "Away", y = percent3)) + 
+  geom_point(data = shots.home, aes(color = "Home", y = percent3), size = 3) + 
+  geom_point(data = shots.away, aes(color = "Away", y = percent3), size = 3) +
+  scale_y_percent(limits = c(0, .45)) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom", panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(linetype = "dashed"), plot.title = element_text(hjust = .5, face = "bold"), plot.subtitle = element_text(hjust = .5)) + scale_color_manual(name ="", values = c("#195190FF", "#A2A2A1FF"), labels = c("Home", "Away")) + labs(x = "", y = "Percent", title = "Kobe Bryant 3PT Percentage", subtitle = "Home vs. Away")
+```
+
+# Summary Plots
+
+The next group of plots are categorized as summary plots. I have tried to take the data that was provided and summarize it in a way that is useful to understand which shots Kobe is more or less likely to make. 
+
+The first chart shows the percentage that Kobe shot from each area of the court. As was shown earlier, Kobe shot the best from the restricted area and then from the non-restricted area in the paint. We also can see that Kobe shot a lot better from the left corner three than from the the right corner, so it seems that either Kobe preferred that shot or he simply got the ball for more open shots in that corner. Either way, it seems preferrable that he would shot from the left corner rather than the right corner.  
 
 ```{r, message=FALSE, warning=FALSE}
 shot.area <- shot.data %>%
@@ -423,7 +409,9 @@ ggplot() + geom_point(data = shot.area, aes(x = mloc_x, y = mloc_y + 69, color =
     coord_fixed() + theme_void() + geom_text(data = shot.area, aes(x = mloc_x, y = mloc_y + 96, color =shot_zone_basic, label = label), size =5) + labs(title = "Kobe Bryant Shot Accuracy") + theme(plot.title = element_text(size = 17, face = "bold", hjust = .65), legend.title = element_blank())
 ```
 
-``````{r, warning = FALSE, message = FALSE}
+After looking at the percentages that he shot from each area, I thought it would be useful to see how many shots he took from each area. Ideally, based off of the previous chart above, you would want him to get most of his shots from the restricted area, in the paint, or from the left corner three. As you can see below, Kobe took more shots from the mid range than any other area and it wasn't even close. The restricted area had the second most shots but that was at least 4000 shots less. He shot a lot from the above the break 3, even though he shot a lower percentage. It also appears that the higher percentage from the left corner in comparison to the right corner might be due to a small sample size since there are very few shots taken from those areas. Regardless, even though he shot a higher percentage from the left corner, Kobe very rarely was taking shots from the left corner 3. 
+
+```{r, warning = FALSE, message = FALSE}
 shot.area <- shot.area %>%
   arrange(shots_attempted) %>%
   mutate(shot_zone_basic = factor(shot_zone_basic, shot_zone_basic))
@@ -438,7 +426,8 @@ ggplot(data = shot.area, aes(x = fct_reorder(shot_zone_basic, shots_attempted), 
     axis.ticks.y = element_blank()
   ) + labs(x = "", y = "Number of shots")
 ```
-``````{r, warning = FALSE, message = FALSE}
+Since most of his shots were from the mid-range, you would expect most of his shots to be jump shots and the graph below shows that almost all of his shots were jump shots or layups, with some dunks mixed in. Hook, bank, and tip shots are all pretty rare in comparison to the other types of shots, so this plot doesn't show anything surprising. 
+```{r, warning = FALSE, message = FALSE}
 shot.types <- shot.data %>% 
   filter(shot_distance <= 32) %>%
   group_by(combined_shot_type) %>%
@@ -457,7 +446,7 @@ ggplot(data = shot.types, aes(x = combined_shot_type, y = shots_attempted)) +
   ) + labs(x = "", y = "Number of shots")
 ```
 
-``````{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE}
 periods <- shot.data %>% 
   filter(shot_distance <= 32) %>%
   group_by(period, game_id) %>%
@@ -482,38 +471,6 @@ ggplot(data = periods, aes(x = period, y = avg_shots_q)) +
   ) + labs(x = "", y = "Average number of shots", title = "Kobe Bryant Average Shots Per Period")
 ```
 
-``````{r, warning = FALSE, message = FALSE}
-shots.home <- shot.data %>%
-  mutate(home = ifelse(str_detect(matchup, "@") == FALSE, 1, 0)) %>%
-  filter(home == 1) %>%
-  group_by(season) %>%
-  summarize(FGPercent = round(mean(shot_made_flag), digits = 4),
-            Percent2 = sum(shot_made_flag == 1 & shot_type == "2PT Field Goal")/sum(shot_type == "2PT Field Goal"),
-              percent3 = sum(shot_made_flag == 1 & shot_type == "3PT Field Goal")/sum(shot_type == "3PT Field Goal")) 
-
-shots.away <- shot.data %>%
-  mutate(home = ifelse(str_detect(matchup, "@")== FALSE, 1, 0)) %>%
-  filter(home == 0) %>%
-  group_by(season) %>%
-  summarize(FGPercent = round(mean(shot_made_flag), digits = 4),
-            Percent2 = sum(shot_made_flag == 1 & shot_type == "2PT Field Goal")/sum(shot_type == "2PT Field Goal"),
-              percent3 = sum(shot_made_flag == 1 & shot_type == "3PT Field Goal")/sum(shot_type == "3PT Field Goal")) 
-
-ggplot(season.fg, aes(x = season, group = 1)) +
-  geom_line(data = shots.home, aes(color = "Home", y = FGPercent)) + 
-  geom_line(data = shots.away, aes(color = "Away", y = FGPercent)) + 
-  geom_point(data = shots.home, aes(color = "Home", y = FGPercent), size = 3) + 
-  geom_point(data = shots.away, aes(color = "Away", y = FGPercent), size = 3) +
-  scale_y_percent(limits = c(.33, .52)) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom", panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(linetype = "dashed"), plot.title = element_text(hjust = .5, face = "bold"), plot.subtitle = element_text(hjust = .5)) + scale_color_manual(name ="", values = c("#195190FF", "#A2A2A1FF"), labels = c("Home", "Away")) + labs(x = "", y = "Percent", title = "Kobe Bryant Field Goal Percentage", subtitle = "Home vs. Away")
-```
-``````{r, warning = FALSE, message = FALSE}
-ggplot(season.fg, aes(x = season, group = 1)) +
-  geom_line(data = shots.home, aes(color = "Home", y = percent3)) + 
-  geom_line(data = shots.away, aes(color = "Away", y = percent3)) + 
-  geom_point(data = shots.home, aes(color = "Home", y = percent3), size = 3) + 
-  geom_point(data = shots.away, aes(color = "Away", y = percent3), size = 3) +
-  scale_y_percent(limits = c(0, .45)) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom", panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(linetype = "dashed"), plot.title = element_text(hjust = .5, face = "bold"), plot.subtitle = element_text(hjust = .5)) + scale_color_manual(name ="", values = c("#195190FF", "#A2A2A1FF"), labels = c("Home", "Away")) + labs(x = "", y = "Percent", title = "Kobe Bryant 3PT Percentage", subtitle = "Home vs. Away")
-```
 ```{r, warning = FALSE, message = FALSE}
 minutes <- shot.data %>% 
   filter(shot_distance <= 32) %>%
@@ -535,7 +492,7 @@ ggplot(data = minutes, aes(x = minutes_remaining, y = shots_attempted)) +
   ) + labs(x = "", y = "Number of shots", title = "Shots for Minutes Remaining in the Quarter")
 ```
 
-``````{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE}
 minutes <- minutes %>%
   arrange(FGPercentage) %>%
   mutate(minutes_remaining = factor(minutes_remaining, minutes_remaining))
@@ -551,6 +508,130 @@ ggplot(data = minutes, aes(x = minutes_remaining, y = FGPercentage)) +
     plot.title = element_text(size = 14, face = "bold", hjust = .5)
   ) + labs(x = "", y = "Field Goal Percentage", title = "Percentage for Minutes Remaining in the Quarter")
 ```
+
+# Shot Charts
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+col_scheme <- c("firebrick4","darkorange2","gold1",
+                "chartreuse4","dodgerblue", "darkorchid4")
+
+ggplot() + 
+  geom_point(data = kobe.filter, 
+             aes(x = loc_x, y = loc_y + 52, color = shot_distance), 
+             size = .4) + 
+  geom_path(data = test.outer_key, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.perimeter, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.three, 
+            aes(x = x, y = y)) + 
+  ylim(-10, 350) +
+  geom_path(data = test.backboard, 
+            aes(x = x, y = y)) +
+  geom_path(data = test.neck, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.hoop, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.foul_circle, 
+            aes(x = x, y = y)) +
+  geom_path(data = test.restricted, 
+            aes(x = x, y = y)) + 
+  coord_fixed() + 
+  theme_void() + 
+  scale_color_gradientn(colors = col_scheme,
+                        limits = c(0,30), 
+                        breaks = c(0, 30), 
+                        name = 'Shot Distance (ft)') +
+  labs(title = "Kobe Bryant Shot Distance")
+```
+
+```{r, warning = FALSE, message = FALSE}
+ggplot() + 
+  geom_point(data = kobe.filter, 
+             aes(x = loc_x, y = loc_y + 52, color = shot_zone_range), 
+             size = .4) + 
+  geom_path(data = test.outer_key, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.perimeter, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.three, 
+            aes(x = x, y = y)) + 
+  ylim(-10, 350) +
+  geom_path(data = test.backboard, 
+            aes(x = x, y = y)) +
+  geom_path(data = test.neck, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.hoop, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.foul_circle, 
+            aes(x = x, y = y)) +
+  geom_path(data = test.restricted, 
+            aes(x = x, y = y)) + 
+  coord_fixed() + 
+  theme_void() + 
+  scale_color_manual(values = c("#D92027", "#FF9234", "#FFCD3C", "#35D0BA"), 
+                     name = "Zone Range") + 
+  guides(colour = guide_legend(reverse = TRUE, override.aes = list(size = 5))) +
+  labs(title = "Kobe Bryant Shot Zone Range")
+```
+
+```{r, warning = FALSE, message = FALSE}
+ggplot() + 
+  geom_point(data = kobe.filter, 
+             aes(x = loc_x, y = loc_y + 52, color = shot_zone_area), 
+             size = .4) + 
+  geom_path(data = test.outer_key, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.perimeter, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.three, 
+            aes(x = x, y = y)) + 
+  ylim(-10, 350) +
+  geom_path(data = test.backboard, 
+            aes(x = x, y = y)) +
+  geom_path(data = test.neck, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.hoop, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.foul_circle, 
+            aes(x = x, y = y)) +
+  geom_path(data = test.restricted, 
+            aes(x = x, y = y)) + 
+  coord_fixed() + 
+  theme_void() + 
+  scale_color_manual(values = col_scheme, name = "Zone Range") + 
+  guides(color = guide_legend(reverse = TRUE, override.aes = list(size = 5))) +
+  labs(title = "Kobe Bryant Shot Zone Range")
+```
+
+```{r, warning = FALSE, message = FALSE}
+ggplot() + 
+  geom_point(data = shot.data, 
+             aes(x = loc_x, y = loc_y + 52, color = as.factor(shot_made_flag)), size = .75) + 
+  geom_path(data = test.outer_key, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.perimeter, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.three, 
+            aes(x = x, y = y)) + 
+  ylim(-10, 350) +
+  geom_path(data = test.backboard, 
+            aes(x = x, y = y)) +
+  geom_path(data = test.neck, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.hoop, 
+            aes(x = x, y = y)) + 
+  geom_path(data = test.foul_circle, 
+            aes(x = x, y = y)) +
+  geom_path(data = test.restricted, 
+            aes(x = x, y = y)) + 
+  coord_fixed() +
+  theme_void() + 
+  scale_color_manual(values = c("#fdb927", "#552583"), labels = c("Miss", "Make"), name = "Zone Range") + 
+  guides(colour = guide_legend(reverse = TRUE, override.aes = list(size = 5))) +
+  labs(title = "Kobe Bryant Shot Distance")
+```
+
 
 ```{r, warnings = FALSE, messages = FALSE}
 ggplot() +stat_density_2d(
@@ -580,7 +661,7 @@ ggplot() +stat_density_2d(
               plot.subtitle = element_text(color = "white", hjust = .5, face = "bold")) + labs(title = "Kobe Bryant Shot Frequency", subtitle = "Outside of the Restricted Area")
 ```
 
-``````{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE}
 made <- ggplot() + stat_density_2d(
       data = shot.data %>% filter(shot_zone_basic != "Restricted Area") %>% filter(shot_made_flag == 1),
       aes(x = loc_x, y = loc_y + 52, fill = stat(density / max(density))),
@@ -632,7 +713,6 @@ miss <- ggplot() + stat_density_2d(
               panel.background = element_rect(fill = "black"),
               strip.background = element_blank(),
               plot.subtitle = element_text(color = "white", hjust = .5, face = "bold")) + labs(title = "Kobe Bryant Shot Frequency", subtitle = "Missed Baskets")
-library(patchwork)
 made + miss
 ```
 
@@ -646,7 +726,7 @@ ggplot() + coord_fixed() + stat_summary_hex(data = shot.data %>% filter(shot_dis
     scale_fill_brewer(palette = "OrRd", labels = c("0-50", "50-100", "100-200", "200-500", "500-3500"), name = "Number of \nMade Shots") + labs(title = "Kobe Bryant Made Shots") + theme(plot.title = element_text(hjust = .5, face = "bold"))
 ```
 
-``````{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE}
 ggplot(data = shot.data) + coord_fixed() + stat_summary_hex(data = shot.data %>% filter(shot_distance <= 32), aes(x= loc_x, y = loc_y +52, z = shot_made_flag, fill = cut(..value.., c(-Inf, .3, .4, .45, .5, .6, Inf), na.rm = TRUE)), fun = mean, bins = 10, na.rm = TRUE)+ geom_path(data = test.outer_key, aes(x= x, y = y), color = "black") + geom_path(data = test.perimeter, aes(x= x, y = y), color = "black", na.rm = TRUE) + geom_path(data = test.three, aes(x= x, y = y), color = "black") + ylim(-10, 350) +
     geom_path(data = test.backboard, aes(x= x, y = y),color = "black") +
     geom_path(data = test.neck, aes(x= x, y = y),color = "black") + 
@@ -658,50 +738,8 @@ ggplot(data = shot.data) + coord_fixed() + stat_summary_hex(data = shot.data %>%
 
 ```
 
-```{r, message = FALSE, warning = FALSE}
-eighty_one <- kobe %>%
-  filter(game_date == "2006-01-22")
+# Conclusion
 
-eighty_one$shot_made_flag[c(17, 24, 31, 37, 38, 42, 44)] <- c(1, 1, 1, 1, 0, 1, 1)
-library(lubridate)
-library(ggalt)
-library(gganimate)
+This notebook provides a variety of different visualizations and shows how information from data can be presented in various forms, while getting across the same idea. Some of the plots are easier to understand than others, so it is important to remember the audience when creating visualizations with data. This provides a variety of visualizations to illustrate how data can be presented in many different ways and certain features or patterns about the data can be discovered through thorough exploratory data visualizations. 
 
-game <- eighty_one %>% mutate(gtime=ms(as.character(paste(minutes_remaining,seconds_remaining,sep = ":")))) %>% 
-    mutate(time_chron = case_when(
-        period == 1 ~ ms("12:00") - gtime,
-        period == 2 ~ ms("24:00") - gtime,
-        period == 3 ~ ms("36:00") - gtime,
-        period == 4 ~ ms("48:00") - gtime))
-
-game <- game %>% 
-    mutate(distTrans = ifelse(shot_distance == 0,.8,shot_distance))
-source("https://raw.githubusercontent.com/toddwschneider/ballr/master/plot_court.R")
-source("https://raw.githubusercontent.com/toddwschneider/ballr/master/court_themes.R")
-court_hide <- plot_court(court_theme = court_themes$light) # created the court_points object we need
-court_points <- court_points %>% mutate_if(is.numeric,~.*10)
- 
-DBcourt <- ggplot(game, aes(x = loc_x, y = loc_y + 47)) + 
-    geom_point(aes(fill = as.factor(shot_made_flag), shape = as.factor(shot_made_flag)),size=3.5) +
-    scale_fill_manual(values = c("#fdb927","#552583"), name = "", labels = c("Missed", "Made")) +
-    scale_shape_manual(values = c(25, 21), name = "", labels = c("Missed", "Made")) +
-    geom_path(data = court_points,
-              aes(x = x, y = y, group = desc))+
-    coord_equal()+
-    xlim(-260, 260) +
-    labs(title = "Kobe Bryant Shot Chart", subtitle = "81 point game", x="",
-         y="") + guides(color=guide_legend(override.aes = list(fill = NA))) +
-    theme(text = element_text(size = 19),
-          panel.grid = element_blank(),
-          axis.text = element_blank(),
-          plot.caption = element_text(color="white"),
-          legend.position = "bottom",
-          plot.background = element_rect(color = "white"),
-          plot.title = element_text(hjust = .5, face = "bold"),
-          plot.subtitle = element_text(hjust = .5, face = "bold"),
-          legend.key = element_rect(color = "white")) +
-    transition_states(game_event_id) + shadow_mark()
-    
-animate(DBcourt, fps = 2)
-```
-
+If there are any questions or concerns, feel free to email me and I'll answer any questions. 
