@@ -9,7 +9,7 @@ The purpose of this notebook is to show the many different ways to visualize the
 
 A number of ideas for visualizations came from the [R Graph Gallery](https://www.r-graph-gallery.com/). There are many examples of different types of visualizations and is worth exploring if you want to try to improve or diversify the visualizations that you make.
 
-This notebook does not have anything with fitting a model for this competition, but a good notebook that goes over feature engineering and fitting a model for this competition can be found [here](https://www.kaggle.com/matt4byu/kobe-bryant-shot-selection-analysis-with-xgboost). In the future, I may create a second notebook that goes over model fitting and how well my model can do in this competition. 
+This notebook does not have anything with fitting a model for this competition, but a good notebook that goes over feature engineering and fitting a model for this competition can be found [here](https://www.kaggle.com/matt4byu/kobe-bryant-shot-selection-analysis-with-xgboost). In the future, I may create a second notebook that goes over model fitting and how well my model can do in this competition. All of the code that was used for this notebook is included as an appendix at the end of this document. 
 
 # Introduction and Getting Started
 
@@ -75,7 +75,7 @@ test.restricted <- court_points %>% filter(desc == "restricted")
 
 The first type of visualizations are related to the different types of shots and percentage for those different shots. There are a lot of different shot types on this first plot, but it is pretty easy to tell that Kobe made dunks and layups at a higher percentage than jump shots. 
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 shot.type <- shot.data %>%
   group_by(action_type) %>%
   summarize(FGPercent = round(mean(shot_made_flag) * 100, digits = 2))
@@ -90,7 +90,7 @@ ggplot(shot.type, aes(fct_reorder(action_type, FGPercent), FGPercent)) +
 
 This graphic simplifies the shot type into six different shot types and it isn't surprising that dunks and layups have a high percentage. Bank shots and hook shots are also shots that are likely closer to the basket, so it makes sense that they have a high field goal percentage as well. Jump shots are further away from the basket and so it makes sense that they have a lower field goal percentage as well. 
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 shot.type.small <- shot.data %>%
   group_by(combined_shot_type) %>%
   summarize(FGPercent = round(mean(shot_made_flag) * 100, digits = 2))
@@ -108,7 +108,7 @@ ggplot(shot.type.small, aes(fct_reorder(combined_shot_type, FGPercent), FGPercen
 The data included the opponent for each game, which allowed me to calculate the field goal percentage for Kobe Bryant against each team. A circular barplot was produced to show the percentage against each team between the different conferences. Over his career, Kobe played more games against teams in the Western Conference than the Eastern Conference so those teams will have more games played against them. I used resources from [R Graph Gallery](https://www.r-graph-gallery.com/circular-barplot.html). to figure out how to create the circular bargraph. 
 As the plot below shows, Kobe shot the worst against the New Orleans Pelicans and the Brooklyn Nets. This isn't very surprising because the Pelicans were previously the New Orleans Hornets and the Nets were previously the New Jersey Nets. When the teams switched names or cities, it was later in Kobe's career when he dealt with more injuries and shot at a lower percentage than earlier in his career. On the other hand, Kobe shot the best against the Vancouver Grizzlies and the New York Knicks. The Vancouver Grizzlies were only located in Vancouver at the beginning of his career and then eventually moved to Memphis, so his field goal percentage is higher than most other teams. There doesn't seem to be much of a logical explanation why Kobe shot the best against the Knicks though. It seems that the attention that comes from playing in New York seemed to motivate Kobe to play better against the Knicks. The Knicks have also been a poor team most of Kobe's career, so it isn't extremely surprising that he would shoot extremely well against them. 
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 team_percentage <- shot.data %>% 
     group_by(opponent) %>%
     summarize(FGPercent = mean(shot_made_flag == 1),
@@ -183,7 +183,7 @@ ggplot(team_percentage, aes(x=as.factor(id), y=FGPercent*100, fill=conference)) 
 
 I also made a few maps that show the field goal percentage against different opponents. I have a data set that includes the latitude and longitude for NBA arenas and that was used to create the map. The colors of the dots correspond with the field goal percentage against each team and then the size of the dots correspond with the number of games played against each team. The interactive maps include a hover tool that tell the name of the team, the arena name, the number of games played against the team, and the exact field goal percentage against the team. These visualizations don't necessarily provide additional information about how Kobe performed against certain teams, but it presents the information in an interesting way for someone to explore. 
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 arena <- read.csv("arenas.csv")
 nba.arena <- arena %>% filter(leagueName == "National Basketball Association") %>% 
   select(teamName, venueName, lat, long)
@@ -247,7 +247,7 @@ The most drastic change in where he was taking his shots from occurs after he te
 
 From this plot, I would say that it is likely that Kobe's field goal percentage is likely to be lower after his injury because he was taking more jump shots and got fewer layups and dunks, which were the shots that he (and all NBA players make) at a higher percentage than jump shots. 
 
-```{r,warning = FALSE, message = FALSE}
+```{r,warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 ggplot(kobe.filter, aes(x = shot_distance, y = season, fill = ..x..)) +
   geom_density_ridges_gradient(scale = 2, rel_min_height = 0.01) +
   scale_fill_viridis(option = "C") +
@@ -262,7 +262,7 @@ ggplot(kobe.filter, aes(x = shot_distance, y = season, fill = ..x..)) +
 
 Next I wanted to see if the distribution of shots changed based on the number of minutes remaining in the game. At the end of the game, you would expect teams to prevent getting to the basket for a layup, especially if the game is close. For the most part, it seems that the shot distribution is about the same regardless how much time is left. There is a spike of mid range jumpers in the first minute of a quarter and there also seems to be more 3-point shots in the last minute, which makes sense since a lot of the time teams need a 3 to tie or win the game or there is little time to get a shot off at the end of a quarter. Besides those two situations, it appears that the shot distribution for Kobe was very similar regardless of how much time was left. 
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 ggplot(kobe.filter, aes(x = shot_distance, y = as.factor(minutes_remaining), fill = ..x..)) +
   geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
   scale_fill_viridis(option = "inferno") +
@@ -279,7 +279,7 @@ ggplot(kobe.filter, aes(x = shot_distance, y = as.factor(minutes_remaining), fil
 
 The next few plots look at Kobe's shooting percentage of the course of his career. The first few years of his career, Kobe had a lower field goal percentage, which isn't very surprising since rookies tend to have an adjustment period and struggle during the start of their career. The next seasons were relatively consistent, with some fluctuation from year to year, but there wasn't a sharp decline in field goal percentage until Kobe suffered his Achilles injury. 
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 season.fg <- shot.data %>% 
   group_by(season) %>%
   summarize(FGPercent = round(mean(shot_made_flag), digits = 4),
@@ -295,7 +295,7 @@ ggplot(season.fg, aes(x = season, y = FGPercent)) +
 
 It was also useful to compare field goal percentage between the regular season and the playoffs. The teams in the playoffs will play harder, make more of an effort on defense, and are in general better teams, so it wouldn't be surprising if the field goal percentage is lower during the playoffs. From the plot below, it appears that this trend holds up and in general, Kobe shot a lower percentage during the playoffs than he did during the regular season. There are a few seasons where he was better in the playoffs, but this is also likely due to the smaller sample size in the playoffs since the most games that Kobe ever played in the playoffs was 23 games. 
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 playoffs <- shot.data %>% 
   filter(playoffs == 1) %>%
   group_by(season) %>%
@@ -317,9 +317,10 @@ ggplot(season.fg, aes(x = season, group = 1)) +
   geom_point(data = reg.season, aes(color = "Season", y = FGPercent), size = 3) +
   scale_y_percent(limits = c(.33, .52)) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom", panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(linetype = "dashed")) + scale_color_manual(name ="", values = c("#195190FF", "#A2A2A1FF"), labels = c("Playoffs", "Regular Season")) + labs(x = "", y = "Percent", title = "Kobe Bryant Field Goal Percentage", subtitle = "Regular Season vs. Playoffs")
 ```
+
 It is also important to look at the type of shots. Almost all NBA players shoot a higher percentage on 2 point attempts than 3-point attempts, which is also the case with Kobe. The 3-point shot hadn't become extremely popular in the NBA during most of Kobe's career, which is probably one reason that he shot so much lower from 3, but in general Kobe wasn't considered a great 3-point shooter as well. A lot of his shots were highly contested and off the dribble. Catch and shoot threes are shot at a lot higher percentage than other 3s, but Kobe very rarely played off the ball during his career, so it isn't surprising that he was a lot worse from 3. 
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 ggplot(season.fg, aes(x = season, group = 1)) +
   geom_line(aes(color = "Two", y = Percent2)) + 
   geom_line(aes(color = "Three", y = percent3)) + 
@@ -330,7 +331,7 @@ ggplot(season.fg, aes(x = season, group = 1)) +
 
 I thought it would also be interesting to see the field goal percentage based on distance away from the basket. Shots that are right next to the basket have the highest percentage and then the percentage slowly decreases the further away from the basket until you get to deep three pointers (27+ feet away) where there is a drastic decline in field goal percentage, since Kobe generally didn't shot those shots and they were likely end of shot clock or end of quarter shots. 
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 fg.distance <- shot.data %>%
   filter(shot_distance <= 32) %>%
   mutate(shot_distance = factor(shot_distance)) %>%
@@ -345,7 +346,7 @@ ggplot(fg.distance, aes(x = shot_distance, y = FGPercent)) +
 
 I thought it would be interesting to see if there was any difference in field goal percentage for Kobe based on whether or not it was a home game for him. In baseball for example, home and road splits are often very different because of the climate and park layout. With basketball, you wouldn't expect the splits to be as different because the courts are all the same size and they are played in a controlled indoor environment. The graph below seems to support the idea that there isn't much of a difference between home and road splits. There are some years where Kobe shot better at home and some years he was better on the road, so it doesn't seem like there is anything specific that causes the difference in home and road field goal percentage besides year to year variation. The same pattern is discovered if we look at 3 point percentage for home and away games, so it seems there is only year to year variation for his shooting percentage at home and on the road and there is no benefit to playing on his home court. 
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 shots.home <- shot.data %>%
   mutate(home = ifelse(str_detect(matchup, "@") == FALSE, 1, 0)) %>%
   filter(home == 1) %>%
@@ -370,7 +371,7 @@ ggplot(season.fg, aes(x = season, group = 1)) +
   scale_y_percent(limits = c(.33, .52)) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom", panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(linetype = "dashed"), plot.title = element_text(hjust = .5, face = "bold"), plot.subtitle = element_text(hjust = .5)) + scale_color_manual(name ="", values = c("#195190FF", "#A2A2A1FF"), labels = c("Home", "Away")) + labs(x = "", y = "Percent", title = "Kobe Bryant Field Goal Percentage", subtitle = "Home vs. Away")
 ```
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 ggplot(season.fg, aes(x = season, group = 1)) +
   geom_line(data = shots.home, aes(color = "Home", y = percent3)) + 
   geom_line(data = shots.away, aes(color = "Away", y = percent3)) + 
@@ -385,7 +386,7 @@ The next group of plots are categorized as summary plots. I have tried to take t
 
 The first chart shows the percentage that Kobe shot from each area of the court. As was shown earlier, Kobe shot the best from the restricted area and then from the non-restricted area in the paint. We also can see that Kobe shot a lot better from the left corner three than from the the right corner, so it seems that either Kobe preferred that shot or he simply got the ball for more open shots in that corner. Either way, it seems preferrable that he would shot from the left corner rather than the right corner.  
 
-```{r, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
 shot.area <- shot.data %>%
   filter(shot_distance <= 32) %>%
   group_by(shot_zone_basic) %>%
@@ -411,7 +412,7 @@ ggplot() + geom_point(data = shot.area, aes(x = mloc_x, y = mloc_y + 69, color =
 
 After looking at the percentages that he shot from each area, I thought it would be useful to see how many shots he took from each area. Ideally, based off of the previous chart above, you would want him to get most of his shots from the restricted area, in the paint, or from the left corner three. As you can see below, Kobe took more shots from the mid range than any other area and it wasn't even close. The restricted area had the second most shots but that was at least 4000 shots less. He shot a lot from the above the break 3, even though he shot a lower percentage. It also appears that the higher percentage from the left corner in comparison to the right corner might be due to a small sample size since there are very few shots taken from those areas. Regardless, even though he shot a higher percentage from the left corner, Kobe very rarely was taking shots from the left corner 3. 
 
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 shot.area <- shot.area %>%
   arrange(shots_attempted) %>%
   mutate(shot_zone_basic = factor(shot_zone_basic, shot_zone_basic))
@@ -426,8 +427,10 @@ ggplot(data = shot.area, aes(x = fct_reorder(shot_zone_basic, shots_attempted), 
     axis.ticks.y = element_blank()
   ) + labs(x = "", y = "Number of shots")
 ```
+
 Since most of his shots were from the mid-range, you would expect most of his shots to be jump shots and the graph below shows that almost all of his shots were jump shots or layups, with some dunks mixed in. Hook, bank, and tip shots are all pretty rare in comparison to the other types of shots, so this plot doesn't show anything surprising. 
-```{r, warning = FALSE, message = FALSE}
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 shot.types <- shot.data %>% 
   filter(shot_distance <= 32) %>%
   group_by(combined_shot_type) %>%
@@ -446,7 +449,9 @@ ggplot(data = shot.types, aes(x = combined_shot_type, y = shots_attempted)) +
   ) + labs(x = "", y = "Number of shots")
 ```
 
-```{r, warning = FALSE, message = FALSE}
+I looked at home many shots Kobe took on average per quarter. I thought that he would take the most shots in the 4th quarter, but he actually took more shots in the 3rd on average, but that may have to do with substitution patterns of his coach, where they would play him most of the 3rd quarter and have him rest at the beginning of the 4th quarter. The overtime periods are the smallest, which isn't surprising because they are only 5 minutes long in comparison with the other quarters, which are 12 minutes long. 
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 periods <- shot.data %>% 
   filter(shot_distance <= 32) %>%
   group_by(period, game_id) %>%
@@ -471,7 +476,9 @@ ggplot(data = periods, aes(x = period, y = avg_shots_q)) +
   ) + labs(x = "", y = "Average number of shots", title = "Kobe Bryant Average Shots Per Period")
 ```
 
-```{r, warning = FALSE, message = FALSE}
+After looking at the average number of shots per quarter, I thought it would be useful to see how many shots were taken for each minute remaining in the quarter. Since Kobe was generally the best player on his team (or one of the best), he often took the shots towards the end of the quarter, so I assumed that he would have more shots in the last minute than other minutes, which ended being very accurate. He had a lot more shots in the last minute of a quarter than at any other time of the quarter, which mean he generally had the ball when it mattered most and time was running low. 
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 minutes <- shot.data %>% 
   filter(shot_distance <= 32) %>%
   group_by(minutes_remaining) %>%
@@ -492,7 +499,9 @@ ggplot(data = minutes, aes(x = minutes_remaining, y = shots_attempted)) +
   ) + labs(x = "", y = "Number of shots", title = "Shots for Minutes Remaining in the Quarter")
 ```
 
-```{r, warning = FALSE, message = FALSE}
+Once I found that he took more shots with less than a minute left in the quarter, it got me interested in how well he actually shot in the last minute (and other times during the quarter). Not surprisingly, the only time he shot under 40% was in the last minute of the game, which makes sense since those shots tend to be more difficult and more heavily contested as well. 
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 minutes <- minutes %>%
   arrange(FGPercentage) %>%
   mutate(minutes_remaining = factor(minutes_remaining, minutes_remaining))
@@ -511,7 +520,11 @@ ggplot(data = minutes, aes(x = minutes_remaining, y = FGPercentage)) +
 
 # Shot Charts
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
+I also made a few graphs that are similar to charts that Kirk Goldsberry has made. They aren't exactly the same, but some of them are similar and made using R. If you haven't seen example of the shot charts that Kirk Goldsberry has made, there are a few examples in this [article](https://fivethirtyeight.com/features/how-mapping-shots-in-the-nba-changed-it-forever/). 
+
+The first chart is a shot chart of all of Kobe's shots across the basketball court. It shows that Kobe shot from everywhere on the floor over the course of his career. 
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
 col_scheme <- c("firebrick4","darkorange2","gold1",
                 "chartreuse4","dodgerblue", "darkorchid4")
 
@@ -545,7 +558,9 @@ ggplot() +
   labs(title = "Kobe Bryant Shot Distance")
 ```
 
-```{r, warning = FALSE, message = FALSE}
+Next, I made the same shot chart, but instead of the color being the distance from the basket, it is the range from the basket, which is really the distance broken into four groups. 
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE,fig.align='center'}
 ggplot() + 
   geom_point(data = kobe.filter, 
              aes(x = loc_x, y = loc_y + 52, color = shot_zone_range), 
@@ -575,7 +590,9 @@ ggplot() +
   labs(title = "Kobe Bryant Shot Zone Range")
 ```
 
-```{r, warning = FALSE, message = FALSE}
+Another similar chart to the previous ones, but the area of the court is highlighted rather than the distance from the basket. 
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 ggplot() + 
   geom_point(data = kobe.filter, 
              aes(x = loc_x, y = loc_y + 52, color = shot_zone_area), 
@@ -604,7 +621,9 @@ ggplot() +
   labs(title = "Kobe Bryant Shot Zone Range")
 ```
 
-```{r, warning = FALSE, message = FALSE}
+This plot shows all of Kobe's makes and misses on the court, which surprisingly is not very informative. With the quantity of shots over the course of his entire career, Kobe practically made and missed a shot from almost every location on the court. 
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 ggplot() + 
   geom_point(data = shot.data, 
              aes(x = loc_x, y = loc_y + 52, color = as.factor(shot_made_flag)), size = .75) + 
@@ -632,8 +651,9 @@ ggplot() +
   labs(title = "Kobe Bryant Shot Distance")
 ```
 
+The next few charts aim at taking the previous information from the shot charts and creating graphics where some useful information can be extracted from them. First, this is a heat map of Kobe's shots outside of the restricted area. He shot so many shots in the restricted area that it was difficult to determine where he shot from the most outside of the restricted area, so I excluded shots that were in the restricted area. This heat map shows that most of his shots were from the non-restricted area in the paint or from the left side mid range from either the elbow or baseline. He clearly preferred to shoot from the left side rather than from the right side. 
 
-```{r, warnings = FALSE, messages = FALSE}
+```{r, warnings = FALSE, messages = FALSE, echo=FALSE, fig.align='center'}
 ggplot() +stat_density_2d(
       data = shot.data %>% filter(shot_zone_basic != "Restricted Area"),
       aes(x = loc_x, y = loc_y + 52, fill = stat(density / max(density))),
@@ -661,7 +681,9 @@ ggplot() +stat_density_2d(
               plot.subtitle = element_text(color = "white", hjust = .5, face = "bold")) + labs(title = "Kobe Bryant Shot Frequency", subtitle = "Outside of the Restricted Area")
 ```
 
-```{r, warning = FALSE, message = FALSE}
+I split the data into the made and missed shots to see if there was a difference in the heat maps between makes and misses. There were a lot more makes that were in the paint, while the misses included a lot more shots from the mid-range and behind the 3 point line. It shows that if Kobe was in the paint, he had a higher chance of making the shot and it also shows he didn't shoot particularly well from outside the paint. 
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 made <- ggplot() + stat_density_2d(
       data = shot.data %>% filter(shot_zone_basic != "Restricted Area") %>% filter(shot_made_flag == 1),
       aes(x = loc_x, y = loc_y + 52, fill = stat(density / max(density))),
@@ -716,7 +738,9 @@ miss <- ggplot() + stat_density_2d(
 made + miss
 ```
 
-```{r, warning = FALSE, message = FALSE}
+A hexbin chart was also made to get a little more detail about the places on the court that Kobe preferred and shot a high percentage. The chart below shows how many shots were made from each spot on the court. The most shots were made in the paint in the restricted area, and then there is one spot of the left baseline where more shots were made than the rest of the places on the court. 
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 ggplot() + coord_fixed() + stat_summary_hex(data = shot.data %>% filter(shot_distance <= 32), aes(x= loc_x, y = loc_y +54, z = shot_made_flag, fill = cut(..value.., c(-1, 50, 100, 200, 500, 3500), na.rm = TRUE)), fun = sum, bins = 10, na.rm = TRUE)+ geom_path(data = test.outer_key, aes(x= x, y = y), color = "black") + geom_path(data = test.perimeter, aes(x= x, y = y), color = "black", na.rm = TRUE) + geom_path(data = test.three, aes(x= x, y = y), color = "black") + ylim(-10, 350) +
     geom_path(data = test.backboard, aes(x= x, y = y),color = "black") +
     geom_path(data = test.neck, aes(x= x, y = y),color = "black") + 
@@ -726,7 +750,9 @@ ggplot() + coord_fixed() + stat_summary_hex(data = shot.data %>% filter(shot_dis
     scale_fill_brewer(palette = "OrRd", labels = c("0-50", "50-100", "100-200", "200-500", "500-3500"), name = "Number of \nMade Shots") + labs(title = "Kobe Bryant Made Shots") + theme(plot.title = element_text(hjust = .5, face = "bold"))
 ```
 
-```{r, warning = FALSE, message = FALSE}
+This final plot then shows the field goal percentage from each bin on the floor. Not surprisingly, the paint had the highest percentage. After that, there are a few select places on the court where Kobe shot a little bit better and then there seems to be no difference between other spots. Finally there is a dropoff of shooting percentage for longer 3-pointers as well. 
+
+```{r, warning = FALSE, message = FALSE, echo=FALSE, fig.align='center'}
 ggplot(data = shot.data) + coord_fixed() + stat_summary_hex(data = shot.data %>% filter(shot_distance <= 32), aes(x= loc_x, y = loc_y +52, z = shot_made_flag, fill = cut(..value.., c(-Inf, .3, .4, .45, .5, .6, Inf), na.rm = TRUE)), fun = mean, bins = 10, na.rm = TRUE)+ geom_path(data = test.outer_key, aes(x= x, y = y), color = "black") + geom_path(data = test.perimeter, aes(x= x, y = y), color = "black", na.rm = TRUE) + geom_path(data = test.three, aes(x= x, y = y), color = "black") + ylim(-10, 350) +
     geom_path(data = test.backboard, aes(x= x, y = y),color = "black") +
     geom_path(data = test.neck, aes(x= x, y = y),color = "black") + 
@@ -743,3 +769,7 @@ ggplot(data = shot.data) + coord_fixed() + stat_summary_hex(data = shot.data %>%
 This notebook provides a variety of different visualizations and shows how information from data can be presented in various forms, while getting across the same idea. Some of the plots are easier to understand than others, so it is important to remember the audience when creating visualizations with data. This provides a variety of visualizations to illustrate how data can be presented in many different ways and certain features or patterns about the data can be discovered through thorough exploratory data visualizations. 
 
 If there are any questions or concerns, feel free to email me and I'll answer any questions. 
+
+# Appendix
+```{r ref.label = knitr::all_labels(), echo = TRUE, eval = FALSE}
+```
