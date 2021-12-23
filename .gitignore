@@ -3,3 +3,6 @@
 .RData
 .Ruserdata
 Basketball.Rproj
+.DS_Store
+*.csv
+
